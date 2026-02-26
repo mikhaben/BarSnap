@@ -1,0 +1,21 @@
+## Interface: 120000
+## Title: BarSnap
+## Notes: Save and restore action bar presets — switch between farming, fighting, fishing bars instantly
+## Author: BarSnap
+## Version: 1.0.0
+## IconTexture: Interface\AddOns\BarSnap\Assets\logo
+## SavedVariables: BarSnapDB
+
+# Core
+Constants.lua
+Core.lua
+
+# Engine
+Engine/Scanner.lua
+Engine/Validator.lua
+Engine/Restore.lua
+
+# UI
+UI/PresetRow.lua
+UI/EditorFrame.lua
+UI/MainFrame.lua
