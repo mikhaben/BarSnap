@@ -6,7 +6,6 @@ _G.BarSnap = NS
 ----------------------------------------------------------------------
 NS.defaults = {
     presets = {},
-    windowPos = { point = "CENTER", x = 0, y = 0 },
 }
 
 ----------------------------------------------------------------------
@@ -70,6 +69,12 @@ local function InitializeDatabase()
             -- Ensure filters table exists
             if type(preset.filters) ~= "table" then
                 preset.filters = NS.DeepCopy(NS.DEFAULT_FILTERS)
+            else
+                for key, default in pairs(NS.DEFAULT_FILTERS) do
+                    if preset.filters[key] == nil then
+                        preset.filters[key] = default
+                    end
+                end
             end
             if type(preset.actions) ~= "table" then
                 preset.actions = {}
@@ -93,6 +98,7 @@ eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:SetScript("OnEvent", function(self, event)
     if event == "PLAYER_LOGIN" then
         InitializeDatabase()
+        NS.InitializeSettings()
         NS.Print("Loaded — /bs to open")
         self:UnregisterEvent("PLAYER_LOGIN")
     end
@@ -104,16 +110,7 @@ end)
 SLASH_BARSNAP1 = "/bs"
 SLASH_BARSNAP2 = "/barsnap"
 SlashCmdList["BARSNAP"] = function(msg)
-    msg = (msg or ""):trim():lower()
-    if msg == "reset" then
-        NS.db.windowPos = { point = "CENTER", x = 0, y = 0 }
-        if NS.mainFrame then
-            NS.mainFrame:ClearAllPoints()
-            NS.mainFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-        end
-        NS.Print("Window position reset.")
-        return
-    end
+    if not NS.db then return end
     -- Toggle main window
     if NS.mainFrame then
         if NS.mainFrame:IsShown() then

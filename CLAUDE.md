@@ -5,7 +5,6 @@ World of Warcraft addon that saves and restores action bar presets. Players capt
 ## Commands
 
 - `/bs` or `/barsnap` — Toggle main window
-- `/bs reset` — Reset window position to center
 
 ## Project Structure
 
@@ -21,7 +20,8 @@ BarSnap/
 ├── UI/
 │   ├── PresetRow.lua      # Preset list row component (icon, name, apply/edit buttons, row pooling)
 │   ├── EditorFrame.lua    # Preset editor (icon picker, name edit, category filters, delete confirmation)
-│   └── MainFrame.lua      # Main floating window (preset list, save button, scroll, drag, ESC close)
+│   ├── MainFrame.lua      # Main floating window (preset list, save button, scroll, drag, ESC close)
+│   └── Settings.lua       # Blizzard addon settings panel
 ├── Assets/
 │   └── logo.tga           # Addon icon
 └── build.sh               # CurseForge build script (versioned zip)
@@ -48,7 +48,7 @@ All modules share a single namespace: `local AddonName, NS = ...` passed via the
 
 **Restore** (`Engine/Restore.lua`) applies presets to bars. `NS.ApplyPreset(preset)` iterates all 72 slots — clears empty ones (unless `preserveLayout` is on), skips filtered-out categories, and places actions using type-specific pickup APIs. Failed placements retry up to `NS.RETRY_MAX` (3) times at `NS.RETRY_INTERVAL` (0.1s) intervals using `C_Timer.After()`. An async sentinel counter delays the summary chat message until all retries complete.
 
-**UI** consists of three modules: `PresetRow` uses object pooling for list rows. `EditorFrame` provides a modal editor anchored to the right of the main window, with Blizzard's `IconSelectorPopup` for icon picking and `StaticPopupDialogs["BARSNAP_DELETE_PRESET"]` for delete confirmation. `MainFrame` creates the draggable floating window, manages the preset scroll list, dynamically resizes (200-500px height), saves/restores position from `NS.db.windowPos`, and registers with `UISpecialFrames` for ESC close.
+**UI** consists of three modules: `PresetRow` uses object pooling for list rows. `EditorFrame` provides a modal editor anchored to the right of the main window, with Blizzard's `IconSelectorPopup` for icon picking and `StaticPopupDialogs["BARSNAP_DELETE_PRESET"]` for delete confirmation. `MainFrame` creates the draggable floating window, manages the preset scroll list, dynamically resizes (200-500px height), and registers with `UISpecialFrames` for ESC close. `Settings` registers a Blizzard addon settings panel with an "Open BarSnap" button.
 
 ## Data Model (BarSnapDB)
 
@@ -59,7 +59,6 @@ Persisted via WoW SavedVariables. Structure:
   - `preserveLayout` (bool) — when true, unlisted slots are left untouched instead of cleared
   - `filters` — per-category booleans: `spells`, `macros`, `items`, `mounts`, `toys`
   - `actions` — sparse table keyed by slot number (1-72), values are `{type, id}` or `{type="macro", name}` for macros
-- **windowPos** — `{point, x, y}` for frame position persistence
 
 Default filters (all true) are deep-copied from `NS.DEFAULT_FILTERS` on preset creation to avoid reference sharing.
 

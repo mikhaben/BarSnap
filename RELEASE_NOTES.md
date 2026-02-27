@@ -16,7 +16,7 @@
 
 - **Preset Editor** — Edit preset names (max 40 characters), change icons, manage category filters, and delete presets.
 
-- **Floating Window** — Draggable, resizable UI window that remembers your position between sessions.
+- **Floating Window** — Draggable UI window with ESC-to-close support.
 
 - **Combat Safe** — Cannot save or apply presets while in combat (WoW API restriction). Prevents accidental action bar changes during raids and dungeons.
 
@@ -24,7 +24,7 @@
 
 - **Empty State Message** — Clear "No presets yet" message when you haven't created any presets.
 
-- **Persistent Storage** — All presets and window position saved across WoW sessions in SavedVariables.
+- **Persistent Storage** — All presets saved across WoW sessions in SavedVariables.
 
 - **Unique Name Auto-Suffix** — Duplicate preset names are automatically suffixed with " (2)", " (3)", etc. to maintain uniqueness.
 
@@ -41,4 +41,3 @@
 ### Keyboard Commands
 
 - `/bs` or `/barsnap` — Open/close the main window
-- `/bs reset` — Reset window position to screen center

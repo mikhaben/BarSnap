@@ -11,8 +11,12 @@ StaticPopupDialogs["BARSNAP_DELETE_PRESET"] = {
     button1 = YES,
     button2 = NO,
     OnAccept = function(self)
-        local idx = self.data
-        if not idx or not NS.db or not NS.db.presets[idx] then return end
+        local data = self.data
+        if not data or not NS.db then return end
+        local idx = data.idx
+        if not idx or not NS.db.presets[idx] then return end
+        -- Verify name still matches to prevent wrong-preset deletion after index shifts
+        if NS.db.presets[idx].name ~= data.name then return end
         table.remove(NS.db.presets, idx)
         currentIndex = nil
         if editorFrame then editorFrame:Hide() end
@@ -65,39 +69,33 @@ function NS.CreateEditorFrame(parent)
 
     iconBtn:SetScript("OnClick", function()
         if not currentIndex then return end
-        local preset = NS.db.presets[currentIndex]
-        if not preset then return end
+        if not NS.db.presets[currentIndex] then return end
 
         -- Use Blizzard's built-in icon selector
         if IconSelectorPopup then
             IconSelectorPopup:SetPoint("TOPLEFT", frame, "TOPRIGHT", 4, 0)
-
-            -- Set up the callback
-            local info = {
-                editMode = false,
-                doneFunc = function(data)
-                    local selectedIcon = IconSelectorPopup:GetIconByIndex(IconSelectorPopup.iconSelector:GetSelectedIndex())
-                    if selectedIcon then
-                        preset.icon = selectedIcon
-                        NS.RefreshEditor()
-                        NS.RefreshMainFrame()
-                    end
-                end,
-                cancelFunc = function() end,
-            }
 
             -- Show the icon selector
             IconSelectorPopup:Show()
             IconSelectorPopup:SetIconFilter(IconSelectorPopupFrameIconFilterTypes.All)
             IconSelectorPopup:Update()
 
-            -- Hook the Okay button
+            -- Hook the Okay button — re-fetch preset to avoid stale closure
             IconSelectorPopup.OkayButton:SetScript("OnClick", function()
+                if not currentIndex then
+                    IconSelectorPopup:Hide()
+                    return
+                end
+                local p = NS.db.presets[currentIndex]
+                if not p then
+                    IconSelectorPopup:Hide()
+                    return
+                end
                 local selectedIdx = IconSelectorPopup.iconSelector:GetSelectedIndex()
                 if selectedIdx then
                     local icon = IconSelectorPopup:GetIconByIndex(selectedIdx)
                     if icon then
-                        preset.icon = icon
+                        p.icon = icon
                         NS.RefreshEditor()
                         NS.RefreshMainFrame()
                     end
@@ -189,7 +187,7 @@ function NS.CreateEditorFrame(parent)
         if not preset then return end
         local popup = StaticPopup_Show("BARSNAP_DELETE_PRESET", preset.name)
         if popup then
-            popup.data = currentIndex
+            popup.data = { idx = currentIndex, name = preset.name }
         end
     end)
     frame.deleteBtn = deleteBtn

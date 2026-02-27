@@ -14,28 +14,14 @@ function NS.CreateMainFrame()
     local frame = CreateFrame("Frame", "BarSnapMainFrame", UIParent, "BasicFrameTemplateWithInset")
     frame:SetSize(NS.MAIN_WIDTH, NS.MAIN_HEIGHT)
 
-    -- Restore saved position
-    local pos = NS.db.windowPos
-    frame:SetPoint(
-        pos.point or "CENTER",
-        UIParent,
-        pos.point or "CENTER",
-        pos.x or 0,
-        pos.y or 0
-    )
+    frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
 
     -- Draggable
     frame:SetMovable(true)
     frame:EnableMouse(true)
     frame:RegisterForDrag("LeftButton")
     frame:SetScript("OnDragStart", frame.StartMoving)
-    frame:SetScript("OnDragStop", function(self)
-        self:StopMovingOrSizing()
-        local point, _, _, x, y = self:GetPoint()
-        NS.db.windowPos.point = point
-        NS.db.windowPos.x = x
-        NS.db.windowPos.y = y
-    end)
+    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
     frame:SetClampedToScreen(true)
     frame:SetFrameStrata("DIALOG")
 

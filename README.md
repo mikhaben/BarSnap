@@ -10,7 +10,7 @@ A World of Warcraft addon that saves and restores action bar presets — switch 
 - **Category Filters** — Toggle which action types restore (Spells, Macros, Items, Mounts, Toys)
 - **Layout Preservation** — Option to keep unlisted slots unchanged, or clear them when applying a preset
 - **Preset Management** — Edit names, change icons, delete presets, and view action counts
-- **Draggable Window** — Floating UI window that remembers your position between sessions
+- **Draggable Window** — Floating, draggable UI window with ESC-to-close support
 - **Combat Safe** — Cannot save or apply presets while in combat (WoW combat lockdown restriction)
 
 ## Quick Start
@@ -27,7 +27,6 @@ A World of Warcraft addon that saves and restores action bar presets — switch 
 | Command | Effect |
 |---------|--------|
 | `/bs` or `/barsnap` | Toggle the main window |
-| `/bs reset` | Reset window position to center of screen |
 
 ## Main Window
 
@@ -158,12 +157,11 @@ Items must be in your inventory (bags or bank doesn't count). Only items current
 
 BarSnap saves all presets to the `BarSnapDB` SavedVariable, which persists across WoW sessions. The database stores:
 - Preset list (name, icon, action slots, filters, options)
-- Window position (point, x, y)
 
 ## Version
 
 **Current Version:** 1.0.0
-**Author:** BarSnap
+**Author:** justLuther
 **License:** MIT
 
 ## Contributing
