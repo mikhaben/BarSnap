@@ -1,8 +1,10 @@
 local AddonName, NS = ...
 
--- Slot range (main action bars 1-6, 12 slots each = 72)
+-- Slot range (action bars 1-8, 12 slots each = 96)
 NS.SLOT_MIN = 1
-NS.SLOT_MAX = 72
+NS.SLOT_MAX = 96
+NS.BAR_COUNT = 8
+NS.SLOTS_PER_BAR = 12
 
 -- Retry config for restore operations
 NS.RETRY_MAX = 3
@@ -26,6 +28,12 @@ NS.DEFAULT_FILTERS = {
     toys   = true,
 }
 
+-- Default bar filters (all enabled)
+NS.DEFAULT_BAR_FILTERS = {
+    [1] = true, [2] = true, [3] = true, [4] = true,
+    [5] = true, [6] = true, [7] = true, [8] = true,
+}
+
 -- Map GetActionInfo type strings to our category keys
 -- Maps both WoW API type strings AND our stored type strings to category keys
 NS.TYPE_MAP = {
@@ -39,19 +47,17 @@ NS.TYPE_MAP = {
 }
 
 -- Layout
-NS.MAIN_WIDTH  = 220
-NS.MAIN_HEIGHT = 320
-NS.EDITOR_WIDTH = 240
-NS.ROW_HEIGHT = 28
-NS.ICON_SIZE = 22
-NS.BTN_SIZE = 22
-NS.PADDING = 8
+NS.MAIN_WIDTH      = 260
+NS.EDITOR_WIDTH    = 240
+NS.ROW_HEIGHT      = 30
+NS.ICON_SIZE       = 22
+NS.BTN_SIZE        = 20
+NS.PADDING         = 10
+NS.TITLE_BAR_HEIGHT = 28
 
 -- Colors {r, g, b}
 NS.COLOR_WHITE      = { 1, 1, 1 }
 NS.COLOR_YELLOW     = { 1, 0.82, 0 }
-NS.COLOR_GREEN      = { 0.3, 1, 0.3 }
-NS.COLOR_RED        = { 1, 0.3, 0.3 }
 NS.COLOR_GRAY       = { 0.5, 0.5, 0.5 }
 NS.COLOR_LABEL_GRAY = { 0.8, 0.8, 0.8 }
 
@@ -61,7 +67,6 @@ NS.TEX_PLAY          = "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up"
 NS.TEX_EDIT          = "Interface\\WorldMap\\GEAR_64GREY"
 NS.TEX_TRASH         = "Interface\\Buttons\\UI-GroupLoot-Pass-Up"
 NS.TEX_HIGHLIGHT     = "Interface\\Buttons\\ButtonHilight-Square"
-NS.TEX_ICON_BORDER   = "Interface\\Buttons\\UI-Quickslot2"
 
 -- Icon texture coordinate crop
 NS.ICON_TEXCOORD = { 0.08, 0.92, 0.08, 0.92 }

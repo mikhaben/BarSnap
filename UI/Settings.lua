@@ -14,7 +14,7 @@ function NS.InitializeSettings()
     -- Title + version
     local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", PADDING_LEFT, PADDING_TOP)
-    title:SetText("BarSnap - " .. (NS.Version or "1.0.0"))
+    title:SetText("BarSnap " .. (NS.version or ""))
 
     -- Author
     local author = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -33,16 +33,7 @@ function NS.InitializeSettings()
     openBtn:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -16)
     openBtn:SetText("Open BarSnap")
     openBtn:SetScript("OnClick", function()
-        if NS.mainFrame then
-            if NS.mainFrame:IsShown() then
-                NS.mainFrame:Hide()
-            else
-                NS.mainFrame:Show()
-            end
-        else
-            NS.CreateMainFrame()
-            NS.mainFrame:Show()
-        end
+        NS.ToggleMainFrame()
     end)
 
     -- Register with Blizzard Settings
@@ -50,5 +41,4 @@ function NS.InitializeSettings()
     category.ID = "BarSnap"
     Settings.RegisterAddOnCategory(category)
 
-    NS.settingsCategory = category
 end

@@ -5,14 +5,17 @@
 
 set -e
 
-PROJECT_NAME="BarSnap"
-BUILD_DIR="build"
-TOC_FILE="${PROJECT_NAME}.toc"
-STAGE_DIR="${BUILD_DIR}/${PROJECT_NAME}"
+TOC_FILE=$(ls *.toc | head -1)
+PROJECT_NAME=$(grep "## Title:" "$TOC_FILE" | sed 's/.*Title: *//' | tr -d '\r\n\t')
 VERSION=$(grep "## Version:" "$TOC_FILE" | sed 's/.*Version: *//' | tr -d '\r\n\t ?')
+
+BUILD_DIR="build"
+STAGE_DIR="${BUILD_DIR}/${PROJECT_NAME}"
+
 TIMESTAMP=$(date -u +"%Y-%m-%d")
 ZIP_NAME="${PROJECT_NAME}_${VERSION}_${TIMESTAMP}.zip"
 ZIP_PATH="${BUILD_DIR}/${ZIP_NAME}"
+
 SEPARATOR="======================================"
 
 echo "$SEPARATOR"

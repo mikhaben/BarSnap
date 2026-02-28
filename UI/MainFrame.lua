@@ -1,9 +1,10 @@
 local AddonName, NS = ...
 
 local mainFrame = nil
-local presetRows = {}
 local emptyText = nil
-local listContainer = nil
+local scrollBox = nil
+local scrollBar = nil
+local dataProvider = nil
 
 ----------------------------------------------------------------------
 -- Create the main window
@@ -11,35 +12,20 @@ local listContainer = nil
 function NS.CreateMainFrame()
     if mainFrame then return mainFrame end
 
-    local frame = CreateFrame("Frame", "BarSnapMainFrame", UIParent, "BasicFrameTemplateWithInset")
-    frame:SetSize(NS.MAIN_WIDTH, NS.MAIN_HEIGHT)
-
-    frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-
-    -- Draggable
-    frame:SetMovable(true)
-    frame:EnableMouse(true)
-    frame:RegisterForDrag("LeftButton")
-    frame:SetScript("OnDragStart", frame.StartMoving)
-    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
-    frame:SetClampedToScreen(true)
-    frame:SetFrameStrata("DIALOG")
-
-    -- Title
-    frame.TitleText:SetText("BarSnap")
-
-    -- Close editor when main window closes
-    frame:SetScript("OnHide", function()
-        NS.CloseEditor()
-    end)
-
-    -- ESC to close
-    tinsert(UISpecialFrames, "BarSnapMainFrame")
+    local frame = NS.CreateWindow({
+        name   = "BarSnapMainFrame",
+        title  = "BarSnap",
+        width  = NS.MAIN_WIDTH,
+        minH   = 140,
+        maxH   = 500,
+        onHide = function() NS.CloseEditor() end,
+    })
 
     -- Save Current Bars button
     local saveBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    saveBtn:SetSize(NS.MAIN_WIDTH - NS.PADDING * 2 - 16, 24)
-    saveBtn:SetPoint("TOP", frame, "TOP", 0, -30)
+    saveBtn:SetHeight(24)
+    saveBtn:SetPoint("TOPLEFT", frame, "TOPLEFT", NS.PADDING, -frame.contentTop)
+    saveBtn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -NS.PADDING, -frame.contentTop)
     saveBtn:SetText("Save Current Bars")
 
     saveBtn:SetScript("OnClick", function()
@@ -80,6 +66,7 @@ function NS.CreateMainFrame()
             specID = specID,
             preserveLayout = false,
             filters = NS.DeepCopy(NS.DEFAULT_FILTERS),
+            barFilters = NS.DeepCopy(NS.DEFAULT_BAR_FILTERS),
             actions = actions,
         }
 
@@ -96,8 +83,8 @@ function NS.CreateMainFrame()
     -- Divider
     local divider = frame:CreateTexture(nil, "ARTWORK")
     divider:SetHeight(1)
-    divider:SetPoint("TOPLEFT", saveBtn, "BOTTOMLEFT", 0, -6)
-    divider:SetPoint("TOPRIGHT", saveBtn, "BOTTOMRIGHT", 0, -6)
+    divider:SetPoint("TOPLEFT", saveBtn, "BOTTOMLEFT", 0, -5)
+    divider:SetPoint("TOPRIGHT", saveBtn, "BOTTOMRIGHT", 0, -5)
     divider:SetColorTexture(0.4, 0.4, 0.4, 0.6)
 
     -- "Presets" label
@@ -106,24 +93,46 @@ function NS.CreateMainFrame()
     presetsLabel:SetText("Presets")
     presetsLabel:SetTextColor(unpack(NS.COLOR_YELLOW))
 
-    -- Scroll frame for preset list
-    local scrollFrame = CreateFrame("ScrollFrame", "BarSnapScrollFrame", frame, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", presetsLabel, "BOTTOMLEFT", 0, -4)
-    scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -28, 8)
+    -- ScrollBox (modern list container — anchors managed by ScrollUtil below)
+    scrollBox = CreateFrame("Frame", nil, frame, "WowScrollBoxList")
 
-    local scrollChild = CreateFrame("Frame", nil, scrollFrame)
-    scrollChild:SetWidth(NS.MAIN_WIDTH - NS.PADDING * 2 - 30)
-    scrollChild:SetHeight(1) -- Will be updated dynamically
-    scrollFrame:SetScrollChild(scrollChild)
-    listContainer = scrollChild
+    -- ScrollBar (minimal style, to the right of scroll box)
+    scrollBar = CreateFrame("EventFrame", nil, frame, "MinimalScrollBar")
+    scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 2, 0)
+    scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 2, 0)
 
-    -- Empty state text
-    emptyText = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    emptyText:SetPoint("TOP", scrollChild, "TOP", 0, -20)
+    -- View + DataProvider
+    local view = CreateScrollBoxListLinearView()
+    view:SetElementExtent(NS.ROW_HEIGHT)
+
+    dataProvider = CreateDataProvider()
+
+    view:SetElementInitializer("Frame", function(row, data)
+        NS.InitPresetRow(row, data.preset, data.index)
+    end)
+
+    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
+
+    -- Let WoW manage scrollbar visibility + scroll box anchors automatically
+    -- This prevents race conditions between our manual SetShown and ScrollUtil's internal callbacks
+    local anchorsWithBar = {
+        CreateAnchor("TOPLEFT", presetsLabel, "BOTTOMLEFT", 0, -3),
+        CreateAnchor("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -(NS.PADDING + 14), NS.PADDING),
+    }
+    local anchorsWithoutBar = {
+        CreateAnchor("TOPLEFT", presetsLabel, "BOTTOMLEFT", 0, -3),
+        CreateAnchor("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -NS.PADDING, NS.PADDING),
+    }
+    ScrollUtil.AddManagedScrollBarVisibilityBehavior(scrollBox, scrollBar, anchorsWithBar, anchorsWithoutBar)
+
+    scrollBox:SetDataProvider(dataProvider)
+
+    -- Empty state text (centered in the list area)
+    emptyText = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    emptyText:SetPoint("TOP", scrollBox, "TOP", 0, -20)
     emptyText:SetText("No presets yet")
     emptyText:Hide()
 
-    frame:Hide()
     mainFrame = frame
     NS.mainFrame = frame
 
@@ -140,41 +149,24 @@ end
 -- Refresh the preset list display
 ----------------------------------------------------------------------
 function NS.RefreshMainFrame()
-    if not mainFrame or not listContainer then return end
+    if not mainFrame or not dataProvider then return end
 
     local presets = NS.db.presets
     local count = #presets
 
-    -- Show/hide empty state
-    if count == 0 then
-        emptyText:Show()
-    else
-        emptyText:Hide()
+    emptyText:SetShown(count == 0)
+
+    -- Rebuild data
+    dataProvider:Flush()
+    for i, preset in ipairs(presets) do
+        dataProvider:Insert({ preset = preset, index = i })
     end
 
-    -- Configure rows
-    for i = 1, count do
-        local row = NS.AcquirePresetRow(listContainer, i)
-        presetRows[i] = row
-        row:SetWidth(listContainer:GetWidth())
-        row:SetPoint("TOPLEFT", listContainer, "TOPLEFT", 0, -(i - 1) * NS.ROW_HEIGHT)
-        row:SetPoint("RIGHT", listContainer, "RIGHT", 0, 0)
-        NS.ConfigurePresetRow(row, presets[i], i)
-    end
-
-    -- Hide unused rows
-    for i = count + 1, #presetRows do
-        if presetRows[i] then
-            presetRows[i]:Hide()
-        end
-    end
-
-    -- Update scroll child height
-    listContainer:SetHeight(math.max(count * NS.ROW_HEIGHT, 1))
-
-    -- Resize main frame height dynamically (min 200, max ~500)
-    local baseHeight = 100 -- title + save button + divider + label
+    -- Resize main frame height dynamically
+    -- Header: padding(38) + save btn(24) + gap(5) + divider(1) + gap(4) + label(12) + gap(3) = 87
+    local headerHeight = mainFrame.contentTop + 24 + 5 + 1 + 4 + 12 + 3
+    local footerHeight = NS.PADDING
     local listHeight = count * NS.ROW_HEIGHT
-    local newHeight = math.max(200, math.min(baseHeight + listHeight + 40, 500))
-    mainFrame:SetHeight(newHeight)
+    local totalHeight = headerHeight + footerHeight + math.max(40, listHeight)
+    mainFrame:SetContentHeight(totalHeight)
 end

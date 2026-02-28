@@ -16,6 +16,7 @@ Engine/Validator.lua
 Engine/Restore.lua
 
 # UI
+UI/WindowFactory.lua
 UI/PresetRow.lua
 UI/EditorFrame.lua
 UI/MainFrame.lua

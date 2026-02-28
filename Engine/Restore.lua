@@ -27,7 +27,19 @@ local function PlaceActionByType(slot, action)
 
     elseif t == "mount" then
         if not id or not C_MountJournal then return false end
-        C_MountJournal.Pickup(id)
+        -- Must use C_MountJournal.Pickup(displayIndex), not C_Spell.PickupSpell —
+        -- mount spells placed as spells don't stick on action bars.
+        local numMounts = C_MountJournal.GetNumDisplayedMounts()
+        local found = false
+        for i = 1, numMounts do
+            local _, _, _, _, _, _, _, _, _, _, _, mountID = C_MountJournal.GetDisplayedMountInfo(i)
+            if mountID == id then
+                C_MountJournal.Pickup(i)
+                found = true
+                break
+            end
+        end
+        if not found then return false end
 
     elseif t == "toy" then
         if not id or not C_ToyBox then return false end
@@ -135,16 +147,6 @@ function NS.ApplyPreset(preset)
     local skipped = 0
     local pending = 1  -- sentinel: prevents early summary during loop
 
-    -- Map action.type → filter key
-    local filterKey = {
-        spell  = "spells",
-        item   = "items",
-        macro  = "macros",
-        mount  = "mounts",
-        toy    = "toys",
-        flyout = "spells",
-    }
-
     local function onComplete()
         pending = pending - 1
         if pending > 0 then return end
@@ -160,29 +162,42 @@ function NS.ApplyPreset(preset)
     end
 
     for slot = NS.SLOT_MIN, NS.SLOT_MAX do
-        local action = preset.actions[slot]
+        local bar = math.ceil(slot / NS.SLOTS_PER_BAR)
 
-        if action == nil then
-            -- No action for this slot
+        if preset.barFilters and preset.barFilters[bar] == false then
+            -- Bar disabled — clear or skip
             if not preset.preserveLayout then
                 ClearSlot(slot)
             end
         else
-            -- Check category filter
-            local fk = filterKey[action.type]
-            if fk and preset.filters and preset.filters[fk] == false then
-                -- Category disabled, skip
+            local action = preset.actions[slot]
+
+            if action == nil then
+                -- No action for this slot
+                if not preset.preserveLayout then
+                    ClearSlot(slot)
+                end
             else
-                -- Attempt to place
-                pending = pending + 1
-                PlaceWithRetry(slot, action, 1, function(success)
-                    if success then
-                        placed = placed + 1
-                    else
-                        skipped = skipped + 1
+                -- Check category filter
+                local fk = NS.TYPE_MAP[action.type]
+
+                if fk and preset.filters and preset.filters[fk] == false then
+                    -- Category disabled — clear slot unless preserveLayout
+                    if not preset.preserveLayout then
+                        ClearSlot(slot)
                     end
-                    onComplete()
-                end)
+                else
+                    -- Attempt to place
+                    pending = pending + 1
+                    PlaceWithRetry(slot, action, 1, function(success)
+                        if success then
+                            placed = placed + 1
+                        else
+                            skipped = skipped + 1
+                        end
+                        onComplete()
+                    end)
+                end
             end
         end
     end

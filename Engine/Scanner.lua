@@ -6,19 +6,29 @@ local AddonName, NS = ...
 local scanBuffer = {}
 
 ----------------------------------------------------------------------
--- ScanBars: read all 72 slots → sparse actions table
+-- ScanBars: read all 96 slots → sparse actions table
 ----------------------------------------------------------------------
 function NS.ScanBars()
     wipe(scanBuffer)
 
     for slot = NS.SLOT_MIN, NS.SLOT_MAX do
-        local actionType, id, subType = GetActionInfo(slot)
+        local actionType, id = GetActionInfo(slot)
 
         if actionType == "spell" then
             scanBuffer[slot] = { type = "spell", id = id }
 
         elseif actionType == "item" then
-            scanBuffer[slot] = { type = "item", id = id }
+            -- Check if this item is actually a toy
+            if id and C_ToyBox and C_ToyBox.GetToyInfo then
+                local toyID = C_ToyBox.GetToyInfo(id)
+                if toyID then
+                    scanBuffer[slot] = { type = "toy", id = id }
+                else
+                    scanBuffer[slot] = { type = "item", id = id }
+                end
+            else
+                scanBuffer[slot] = { type = "item", id = id }
+            end
 
         elseif actionType == "macro" then
             local name = GetMacroInfo(id)
@@ -32,7 +42,7 @@ function NS.ScanBars()
         elseif actionType == "companion" or actionType == "toy" then
             -- Companion might be a toy; validate via C_ToyBox
             if C_ToyBox and C_ToyBox.GetToyInfo and id then
-                local toyID, toyName = C_ToyBox.GetToyInfo(id)
+                local toyID = C_ToyBox.GetToyInfo(id)
                 if toyID then
                     scanBuffer[slot] = { type = "toy", id = id }
                 end

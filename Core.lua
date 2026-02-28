@@ -12,12 +12,10 @@ NS.defaults = {
 -- Deep copy
 ----------------------------------------------------------------------
 function NS.DeepCopy(orig)
-    if type(orig) ~= "table" then
-        return orig
-    end
+    if type(orig) ~= "table" then return orig end
     local copy = {}
-    for k, v in next, orig, nil do
-        copy[NS.DeepCopy(k)] = NS.DeepCopy(v)
+    for k, v in pairs(orig) do
+        copy[k] = NS.DeepCopy(v)
     end
     return copy
 end
@@ -52,6 +50,16 @@ function NS.Warn(msg)
 end
 
 ----------------------------------------------------------------------
+-- Read version from TOC metadata
+----------------------------------------------------------------------
+local function ReadVersion()
+    local fn = C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata
+    if fn then
+        return fn(AddonName, "Version")
+    end
+end
+
+----------------------------------------------------------------------
 -- Database init
 ----------------------------------------------------------------------
 local function InitializeDatabase()
@@ -76,6 +84,16 @@ local function InitializeDatabase()
                     end
                 end
             end
+            -- Ensure barFilters table exists
+            if type(preset.barFilters) ~= "table" then
+                preset.barFilters = NS.DeepCopy(NS.DEFAULT_BAR_FILTERS)
+            else
+                for bar = 1, NS.BAR_COUNT do
+                    if preset.barFilters[bar] == nil then
+                        preset.barFilters[bar] = true
+                    end
+                end
+            end
             if type(preset.actions) ~= "table" then
                 preset.actions = {}
             end
@@ -97,6 +115,7 @@ local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:SetScript("OnEvent", function(self, event)
     if event == "PLAYER_LOGIN" then
+        NS.version = ReadVersion()
         InitializeDatabase()
         NS.InitializeSettings()
         NS.Print("Loaded — /bs to open")
@@ -105,21 +124,21 @@ eventFrame:SetScript("OnEvent", function(self, event)
 end)
 
 ----------------------------------------------------------------------
+-- Toggle main window (used by slash command + settings panel)
+----------------------------------------------------------------------
+function NS.ToggleMainFrame()
+    if not NS.db then return end
+    if not NS.mainFrame then
+        NS.CreateMainFrame()
+    end
+    NS.mainFrame:SetShown(not NS.mainFrame:IsShown())
+end
+
+----------------------------------------------------------------------
 -- Slash command
 ----------------------------------------------------------------------
 SLASH_BARSNAP1 = "/bs"
 SLASH_BARSNAP2 = "/barsnap"
-SlashCmdList["BARSNAP"] = function(msg)
-    if not NS.db then return end
-    -- Toggle main window
-    if NS.mainFrame then
-        if NS.mainFrame:IsShown() then
-            NS.mainFrame:Hide()
-        else
-            NS.mainFrame:Show()
-        end
-    else
-        NS.CreateMainFrame()
-        NS.mainFrame:Show()
-    end
+SlashCmdList["BARSNAP"] = function()
+    NS.ToggleMainFrame()
 end

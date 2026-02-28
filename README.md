@@ -80,7 +80,7 @@ Click the trash icon to permanently delete a preset (cannot be undone).
 - **UI Framework:** Raw WoW frame API (no AceGUI)
 - **Templates Used:**
   - BasicFrameTemplateWithInset (floating windows)
-  - UIPanelScrollFrameTemplate (scrollable preset list)
+  - WowScrollBoxList + MinimalScrollBar (scrollable preset list)
   - UIPanelButtonTemplate (action buttons)
 
 ## Project Structure
