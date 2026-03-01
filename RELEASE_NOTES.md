@@ -4,17 +4,21 @@
 
 ### New Features
 
-- **Action Bar Presets** — Save your entire action bar configuration (all 72 slots across bars 1-6) into named presets with one click.
+- **Action Bar Presets** — Save your entire action bar configuration into named presets with one click.
 
 - **One-Click Restore** — Apply any saved preset to instantly swap your entire action bar setup. Perfect for switching between farming, fighting, and fishing bars.
 
+- **Global & Character Scopes** — Save presets globally (shared across all characters) or per-character. Each character remembers its last-selected scope.
+
 - **Smart Icons** — Each preset automatically displays the icon from its first populated slot. Use the built-in icon picker to customize icons for easy visual identification.
 
-- **Category Filters** — Toggle which action types restore independently: Spells, Macros, Items, Mounts, and Toys. Useful for farming bars where you want specific actions but not others.
+- **Category Filters** — Toggle which action types restore independently: Spells, Macros, Items, Mounts, Toys, and Pets.
+
+- **Per-Bar Filters** — Enable or disable restoration for each individual bar (1-8).
 
 - **Layout Preservation** — Option to keep unlisted slots unchanged when applying a preset. Swap out some actions while keeping others in place.
 
-- **Preset Editor** — Edit preset names (max 40 characters), change icons, manage category filters, and delete presets.
+- **Preset Editor** — Edit preset names (max 40 characters), change icons, manage category and bar filters, and delete presets.
 
 - **Floating Window** — Draggable UI window with ESC-to-close support.
 
@@ -22,9 +26,7 @@
 
 - **Action Count Display** — See how many actions each preset contains for quick overview.
 
-- **Empty State Message** — Clear "No presets yet" message when you haven't created any presets.
-
-- **Persistent Storage** — All presets saved across WoW sessions in SavedVariables.
+- **Persistent Storage** — All presets saved across WoW sessions in SavedVariables (global and per-character).
 
 - **Unique Name Auto-Suffix** — Duplicate preset names are automatically suffixed with " (2)", " (3)", etc. to maintain uniqueness.
 
@@ -36,7 +38,13 @@
 
 - **Flyout Support** — Spell flyouts (like portal lists) are supported.
 
-- **Retry Logic** — Action placement automatically retries (up to 3 times) if it fails, handling timing issues gracefully.
+- **Equipment Set Support** — Equipment sets are saved by name and restore correctly.
+
+- **Battle Pet Support** — Battle pets from your pet journal are captured and restored.
+
+- **Retry Logic** — Action placement automatically retries (up to 5 times) if it fails, handling timing issues gracefully.
+
+- **Blizzard Settings Panel** — Integrated addon settings panel accessible from WoW's addon options.
 
 ### Keyboard Commands
 

@@ -1,6 +1,32 @@
 local AddonName, NS = ...
 
 ----------------------------------------------------------------------
+-- Icon button factory (shared by Apply, Delete, Edit)
+----------------------------------------------------------------------
+local function CreateIconButton(parent, texture, anchor, tooltip, opts)
+    local btn = CreateFrame("Button", nil, parent)
+    btn:SetSize(NS.BTN_SIZE, NS.BTN_SIZE)
+    btn:SetPoint(unpack(anchor))
+
+    local tex = btn:CreateTexture(nil, "ARTWORK")
+    if opts and opts.texSize then
+        tex:SetSize(opts.texSize, opts.texSize)
+        tex:SetPoint("CENTER")
+    else
+        tex:SetAllPoints()
+    end
+    tex:SetTexture(texture)
+
+    local hl = btn:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    hl:SetTexture(NS.TEX_HIGHLIGHT)
+    hl:SetAlpha(0.3)
+
+    NS.SetupTooltip(btn, tooltip.title, tooltip.body, tooltip.r, tooltip.g, tooltip.b)
+    return btn
+end
+
+----------------------------------------------------------------------
 -- Initialize a preset row (creates children on first use, configures every call)
 -- Used as the element initializer for the WowScrollBoxList DataProvider.
 ----------------------------------------------------------------------
@@ -23,75 +49,20 @@ function NS.InitPresetRow(row, preset, index)
         row.nameText = nameText
 
         -- Apply button (play arrow) — rightmost
-        local applyBtn = CreateFrame("Button", nil, row)
-        applyBtn:SetSize(NS.BTN_SIZE, NS.BTN_SIZE)
-        applyBtn:SetPoint("RIGHT", row, "RIGHT", 0, 0)
-
-        local applyTex = applyBtn:CreateTexture(nil, "ARTWORK")
-        applyTex:SetAllPoints()
-        applyTex:SetTexture(NS.TEX_PLAY)
-        applyBtn.texture = applyTex
-
-        local applyHL = applyBtn:CreateTexture(nil, "HIGHLIGHT")
-        applyHL:SetAllPoints()
-        applyHL:SetTexture(NS.TEX_HIGHLIGHT)
-        applyHL:SetAlpha(0.3)
-
-        applyBtn:SetScript("OnEnter", function(self)
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:SetText("Apply Preset")
-            GameTooltip:Show()
-        end)
-        applyBtn:SetScript("OnLeave", GameTooltip_Hide)
-        row.applyBtn = applyBtn
+        row.applyBtn = CreateIconButton(row, NS.TEX_PLAY,
+            {"RIGHT", row, "RIGHT", 0, 0},
+            { title = "Apply Preset" })
 
         -- Delete button (trash icon) — middle
-        local deleteBtn = CreateFrame("Button", nil, row)
-        deleteBtn:SetSize(NS.BTN_SIZE, NS.BTN_SIZE)
-        deleteBtn:SetPoint("RIGHT", applyBtn, "LEFT", -3, 0)
-
-        local deleteTex = deleteBtn:CreateTexture(nil, "ARTWORK")
-        deleteTex:SetSize(NS.BTN_SIZE - 4, NS.BTN_SIZE - 4)
-        deleteTex:SetPoint("CENTER")
-        deleteTex:SetTexture(NS.TEX_TRASH)
-        deleteBtn.texture = deleteTex
-
-        local deleteHL = deleteBtn:CreateTexture(nil, "HIGHLIGHT")
-        deleteHL:SetAllPoints()
-        deleteHL:SetTexture(NS.TEX_HIGHLIGHT)
-        deleteHL:SetAlpha(0.3)
-
-        deleteBtn:SetScript("OnEnter", function(self)
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:SetText("Delete Preset")
-            GameTooltip:AddLine("This cannot be undone", 1, 0.3, 0.3)
-            GameTooltip:Show()
-        end)
-        deleteBtn:SetScript("OnLeave", GameTooltip_Hide)
-        row.deleteBtn = deleteBtn
+        row.deleteBtn = CreateIconButton(row, NS.TEX_TRASH,
+            {"RIGHT", row.applyBtn, "LEFT", -3, 0},
+            { title = "Delete Preset", body = "This cannot be undone", r = 1, g = 0.3, b = 0.3 },
+            { texSize = NS.BTN_SIZE - 4 })
 
         -- Edit button (pencil/gear) — leftmost of the three
-        local editBtn = CreateFrame("Button", nil, row)
-        editBtn:SetSize(NS.BTN_SIZE, NS.BTN_SIZE)
-        editBtn:SetPoint("RIGHT", deleteBtn, "LEFT", -3, 0)
-
-        local editTex = editBtn:CreateTexture(nil, "ARTWORK")
-        editTex:SetAllPoints()
-        editTex:SetTexture(NS.TEX_EDIT)
-        editBtn.texture = editTex
-
-        local editHL = editBtn:CreateTexture(nil, "HIGHLIGHT")
-        editHL:SetAllPoints()
-        editHL:SetTexture(NS.TEX_HIGHLIGHT)
-        editHL:SetAlpha(0.3)
-
-        editBtn:SetScript("OnEnter", function(self)
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:SetText("Edit Preset")
-            GameTooltip:Show()
-        end)
-        editBtn:SetScript("OnLeave", GameTooltip_Hide)
-        row.editBtn = editBtn
+        row.editBtn = CreateIconButton(row, NS.TEX_EDIT,
+            {"RIGHT", row.deleteBtn, "LEFT", -3, 0},
+            { title = "Edit Preset" })
     end
 
     -- Configure data (runs every time element is recycled)

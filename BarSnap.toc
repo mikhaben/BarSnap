@@ -5,6 +5,7 @@
 ## Version: 1.0.0
 ## IconTexture: Interface\AddOns\BarSnap\Assets\logo
 ## SavedVariables: BarSnapDB
+## SavedVariablesPerCharacter: BarSnapCharDB
 
 # Core
 Constants.lua

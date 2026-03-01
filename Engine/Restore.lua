@@ -7,80 +7,109 @@ local AddonName, NS = ...
 local function PlaceActionByType(slot, action)
     if not action or not action.type then return false end
 
-    ClearCursor()
+    local ok, result = pcall(function()
+        ClearCursor()
 
-    local t = action.type
-    local id = action.id
+        local t = action.type
+        local id = action.id
 
-    if t == "spell" then
-        if not id or not IsPlayerSpell(id) then return false end
-        C_Spell.PickupSpell(id)
+        if t == "spell" then
+            if not id or not IsPlayerSpell(id) then return false end
+            C_Spell.PickupSpell(id)
 
-    elseif t == "item" then
-        if not id then return false end
-        PickupItem(id)
+        elseif t == "item" then
+            if not id then return false end
+            PickupItem(id)
 
-    elseif t == "macro" then
-        local macroIdx = NS.FindMacroIndex(action)
-        if not macroIdx then return false end
-        PickupMacro(macroIdx)
+        elseif t == "macro" then
+            local macroIdx = NS.FindMacroIndex(action)
+            if not macroIdx then return false end
+            PickupMacro(macroIdx)
 
-    elseif t == "mount" then
-        if not id or not C_MountJournal then return false end
-        -- Must use C_MountJournal.Pickup(displayIndex), not C_Spell.PickupSpell —
-        -- mount spells placed as spells don't stick on action bars.
-        local numMounts = C_MountJournal.GetNumDisplayedMounts()
-        local found = false
-        for i = 1, numMounts do
-            local _, _, _, _, _, _, _, _, _, _, _, mountID = C_MountJournal.GetDisplayedMountInfo(i)
-            if mountID == id then
-                C_MountJournal.Pickup(i)
-                found = true
-                break
+        elseif t == "mount" then
+            if not id or not C_MountJournal then return false end
+            -- Random Favourite Mount uses sentinel ID
+            if id == 0 or id == 0xFFFFFFF then
+                C_MountJournal.Pickup(0)
+            else
+                -- Must use C_MountJournal.Pickup(displayIndex), not C_Spell.PickupSpell —
+                -- mount spells placed as spells don't stick on action bars.
+                local numMounts = C_MountJournal.GetNumDisplayedMounts()
+                local found = false
+                for i = 1, numMounts do
+                    local _, _, _, _, _, _, _, _, _, _, _, mountID = C_MountJournal.GetDisplayedMountInfo(i)
+                    if mountID == id then
+                        C_MountJournal.Pickup(i)
+                        found = true
+                        break
+                    end
+                end
+                if not found then
+                    -- Fallback: mount journal may be filtered, try spell ID
+                    local _, spellID = C_MountJournal.GetMountInfoByID(id)
+                    if spellID then
+                        C_Spell.PickupSpell(spellID)
+                    else
+                        return false
+                    end
+                end
             end
-        end
-        if not found then return false end
 
-    elseif t == "toy" then
-        if not id or not C_ToyBox then return false end
-        C_ToyBox.PickupToyBoxItem(id)
+        elseif t == "toy" then
+            if not id or not C_ToyBox then return false end
+            C_ToyBox.PickupToyBoxItem(id)
 
-    elseif t == "flyout" then
-        if not id then return false end
-        -- Flyout IDs are not spell IDs; use spellbook lookup
-        local numTabs = C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines and C_SpellBook.GetNumSpellBookSkillLines() or 0
-        local placed = false
-        for tab = 1, numTabs do
-            local tabInfo = C_SpellBook.GetSpellBookSkillLineInfo(tab)
-            if tabInfo then
-                for i = tabInfo.itemIndexOffset + 1, tabInfo.itemIndexOffset + tabInfo.numSpellBookItems do
-                    local bookType = C_SpellBook.GetSpellBookItemType(i, Enum.SpellBookSpellBank.Player)
-                    if bookType == Enum.SpellBookItemType.Flyout then
-                        local flyoutID = C_SpellBook.GetSpellBookItemFlyoutID(i, Enum.SpellBookSpellBank.Player)
-                        if flyoutID == id then
+        elseif t == "flyout" then
+            if not id then return false end
+            -- Flyout IDs are not spell IDs; find matching flyout in spellbook via GetSpellBookItemInfo
+            local numTabs = C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines and C_SpellBook.GetNumSpellBookSkillLines() or 0
+            local placed = false
+            for tab = 1, numTabs do
+                local tabInfo = C_SpellBook.GetSpellBookSkillLineInfo(tab)
+                if tabInfo then
+                    for i = tabInfo.itemIndexOffset + 1, tabInfo.itemIndexOffset + tabInfo.numSpellBookItems do
+                        local itemInfo = C_SpellBook.GetSpellBookItemInfo(i, Enum.SpellBookSpellBank.Player)
+                        if itemInfo and itemInfo.itemType == Enum.SpellBookItemType.Flyout and itemInfo.actionID == id then
                             C_SpellBook.PickupSpellBookItem(i, Enum.SpellBookSpellBank.Player)
                             placed = true
                             break
                         end
                     end
                 end
+                if placed then break end
             end
-            if placed then break end
+
+        elseif t == "equipmentset" then
+            if not action.name or not C_EquipmentSet then return false end
+            local setID = C_EquipmentSet.GetEquipmentSetID(action.name)
+            if not setID then return false end
+            C_EquipmentSet.PickupEquipmentSet(setID)
+
+        elseif t == "summonpet" then
+            if not id or not C_PetJournal then return false end
+            C_PetJournal.PickupPet(id)
+
+        else
+            return false
         end
 
-    else
+        -- If cursor has something, place it
+        if GetCursorInfo() then
+            PlaceAction(slot)
+            ClearCursor()
+            return true
+        end
+
+        ClearCursor()
+        return false
+    end)
+
+    if not ok then
+        ClearCursor()
         return false
     end
 
-    -- If cursor has something, place it
-    if GetCursorInfo() then
-        PlaceAction(slot)
-        ClearCursor()
-        return true
-    end
-
-    ClearCursor()
-    return false
+    return result
 end
 
 ----------------------------------------------------------------------

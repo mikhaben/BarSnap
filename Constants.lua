@@ -7,7 +7,7 @@ NS.BAR_COUNT = 8
 NS.SLOTS_PER_BAR = 12
 
 -- Retry config for restore operations
-NS.RETRY_MAX = 3
+NS.RETRY_MAX = 5
 NS.RETRY_INTERVAL = 0.1
 
 -- Action categories (order matters for UI display)
@@ -17,6 +17,7 @@ NS.CATEGORIES = {
     { key = "items",  label = "Items" },
     { key = "mounts", label = "Mounts" },
     { key = "toys",   label = "Toys" },
+    { key = "pets",   label = "Pets" },
 }
 
 -- Default filters (all enabled)
@@ -26,6 +27,7 @@ NS.DEFAULT_FILTERS = {
     items  = true,
     mounts = true,
     toys   = true,
+    pets   = true,
 }
 
 -- Default bar filters (all enabled)
@@ -44,6 +46,8 @@ NS.TYPE_MAP = {
     mount        = "mounts",  -- our stored type
     toy          = "toys",
     flyout       = "spells",  -- flyouts grouped with spells
+    equipmentset = "items",   -- equipment sets grouped with items
+    summonpet    = "pets",    -- battle pets
 }
 
 -- Layout
@@ -73,3 +77,8 @@ NS.ICON_TEXCOORD = { 0.08, 0.92, 0.08, 0.92 }
 
 -- Chat prefix
 NS.CHAT_PREFIX = "|cff33bbff" .. AddonName .. ":|r "
+
+-- Preset scope
+NS.SCOPE_GLOBAL    = "global"
+NS.SCOPE_CHARACTER = "character"
+NS.SCOPE_BTN_HEIGHT = 24

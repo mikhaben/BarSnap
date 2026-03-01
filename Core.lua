@@ -8,6 +8,11 @@ NS.defaults = {
     presets = {},
 }
 
+NS.charDefaults = {
+    presets = {},
+    scope = NS.SCOPE_CHARACTER,
+}
+
 ----------------------------------------------------------------------
 -- Deep copy
 ----------------------------------------------------------------------
@@ -50,6 +55,21 @@ function NS.Warn(msg)
 end
 
 ----------------------------------------------------------------------
+-- Tooltip helper (replaces repeated OnEnter/OnLeave boilerplate)
+----------------------------------------------------------------------
+function NS.SetupTooltip(frame, title, bodyText, r, g, b)
+    frame:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(title)
+        if bodyText then
+            GameTooltip:AddLine(bodyText, r or 1, g or 1, b or 1, true)
+        end
+        GameTooltip:Show()
+    end)
+    frame:SetScript("OnLeave", GameTooltip_Hide)
+end
+
+----------------------------------------------------------------------
 -- Read version from TOC metadata
 ----------------------------------------------------------------------
 local function ReadVersion()
@@ -60,21 +80,12 @@ local function ReadVersion()
 end
 
 ----------------------------------------------------------------------
--- Database init
+-- Validate a presets array (skip corrupt entries, repair missing fields)
 ----------------------------------------------------------------------
-local function InitializeDatabase()
-    if not BarSnapDB then
-        BarSnapDB = NS.DeepCopy(NS.defaults)
-    else
-        BarSnapDB = MergeDefaults(BarSnapDB, NS.defaults)
-    end
-    NS.db = BarSnapDB
-
-    -- Validate existing presets (skip corrupt entries)
+local function ValidatePresets(presets)
     local valid = {}
-    for i, preset in ipairs(NS.db.presets) do
+    for i, preset in ipairs(presets) do
         if type(preset) == "table" and type(preset.name) == "string" and preset.name ~= "" then
-            -- Ensure filters table exists
             if type(preset.filters) ~= "table" then
                 preset.filters = NS.DeepCopy(NS.DEFAULT_FILTERS)
             else
@@ -84,7 +95,6 @@ local function InitializeDatabase()
                     end
                 end
             end
-            -- Ensure barFilters table exists
             if type(preset.barFilters) ~= "table" then
                 preset.barFilters = NS.DeepCopy(NS.DEFAULT_BAR_FILTERS)
             else
@@ -105,7 +115,59 @@ local function InitializeDatabase()
             NS.Warn("Skipped corrupt preset at index " .. i)
         end
     end
-    NS.db.presets = valid
+    return valid
+end
+
+----------------------------------------------------------------------
+-- Database init
+----------------------------------------------------------------------
+local function InitializeDatabase()
+    -- Global (account-wide) database
+    if not BarSnapDB then
+        BarSnapDB = NS.DeepCopy(NS.defaults)
+    else
+        BarSnapDB = MergeDefaults(BarSnapDB, NS.defaults)
+    end
+    NS.db = BarSnapDB
+    NS.db.presets = ValidatePresets(NS.db.presets)
+
+    -- Per-character database
+    if not BarSnapCharDB then
+        BarSnapCharDB = NS.DeepCopy(NS.charDefaults)
+    else
+        BarSnapCharDB = MergeDefaults(BarSnapCharDB, NS.charDefaults)
+    end
+    NS.charDb = BarSnapCharDB
+    NS.charDb.presets = ValidatePresets(NS.charDb.presets)
+
+    -- Validate scope value
+    if NS.charDb.scope ~= NS.SCOPE_GLOBAL and NS.charDb.scope ~= NS.SCOPE_CHARACTER then
+        NS.charDb.scope = NS.SCOPE_GLOBAL
+    end
+end
+
+----------------------------------------------------------------------
+-- Scope accessors
+----------------------------------------------------------------------
+function NS.GetActiveScope()
+    if NS.charDb then
+        return NS.charDb.scope or NS.SCOPE_GLOBAL
+    end
+    return NS.SCOPE_GLOBAL
+end
+
+function NS.SetActiveScope(scope)
+    if not NS.charDb then return end
+    NS.charDb.scope = scope
+    NS.CloseEditor()
+    NS.RefreshMainFrame()
+end
+
+function NS.GetActivePresets()
+    if NS.GetActiveScope() == NS.SCOPE_CHARACTER then
+        return NS.charDb.presets
+    end
+    return NS.db.presets
 end
 
 ----------------------------------------------------------------------

@@ -16,16 +16,48 @@ function NS.CreateMainFrame()
         name   = "BarSnapMainFrame",
         title  = "BarSnap",
         width  = NS.MAIN_WIDTH,
-        minH   = 140,
+        minH   = 170,
         maxH   = 500,
         onHide = function() NS.CloseEditor() end,
     })
 
+    -- Scope toggle button
+    local scopeBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    scopeBtn:SetHeight(NS.SCOPE_BTN_HEIGHT)
+    scopeBtn:SetPoint("TOPLEFT", frame, "TOPLEFT", NS.PADDING, -frame.contentTop)
+    scopeBtn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -NS.PADDING, -frame.contentTop)
+
+    local function UpdateScopeButton()
+        local scope = NS.GetActiveScope()
+        if scope == NS.SCOPE_CHARACTER then
+            local charName = UnitName("player") or "Character"
+            scopeBtn:SetText("Scope: " .. charName)
+        else
+            scopeBtn:SetText("Scope: Global")
+        end
+    end
+
+    scopeBtn:SetScript("OnClick", function()
+        local current = NS.GetActiveScope()
+        if current == NS.SCOPE_GLOBAL then
+            NS.SetActiveScope(NS.SCOPE_CHARACTER)
+        else
+            NS.SetActiveScope(NS.SCOPE_GLOBAL)
+        end
+        UpdateScopeButton()
+    end)
+
+    NS.SetupTooltip(scopeBtn, "Preset Scope", "Click to toggle between Global\nand Character-specific presets.")
+
+    frame.scopeBtn = scopeBtn
+    frame.UpdateScopeButton = UpdateScopeButton
+    UpdateScopeButton()
+
     -- Save Current Bars button
     local saveBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     saveBtn:SetHeight(24)
-    saveBtn:SetPoint("TOPLEFT", frame, "TOPLEFT", NS.PADDING, -frame.contentTop)
-    saveBtn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -NS.PADDING, -frame.contentTop)
+    saveBtn:SetPoint("TOPLEFT", scopeBtn, "BOTTOMLEFT", 0, -4)
+    saveBtn:SetPoint("TOPRIGHT", scopeBtn, "BOTTOMRIGHT", 0, -4)
     saveBtn:SetText("Save Current Bars")
 
     saveBtn:SetScript("OnClick", function()
@@ -35,7 +67,7 @@ function NS.CreateMainFrame()
         local count = NS.CountActions(actions)
 
         -- Auto-name
-        local baseName = "Preset #" .. (#NS.db.presets + 1)
+        local baseName = "Preset #" .. (#NS.GetActivePresets() + 1)
         local name = NS.UniqueName(baseName)
 
         -- Current spec (for labeling)
@@ -70,11 +102,11 @@ function NS.CreateMainFrame()
             actions = actions,
         }
 
-        table.insert(NS.db.presets, preset)
+        table.insert(NS.GetActivePresets(), preset)
         NS.RefreshMainFrame()
 
         -- Open editor for the new preset
-        NS.OpenEditor(#NS.db.presets)
+        NS.OpenEditor(#NS.GetActivePresets())
 
         NS.Print("Saved '" .. name .. "' (" .. count .. " actions)")
     end)
@@ -151,7 +183,11 @@ end
 function NS.RefreshMainFrame()
     if not mainFrame or not dataProvider then return end
 
-    local presets = NS.db.presets
+    if mainFrame.UpdateScopeButton then
+        mainFrame.UpdateScopeButton()
+    end
+
+    local presets = NS.GetActivePresets()
     local count = #presets
 
     emptyText:SetShown(count == 0)
@@ -163,8 +199,8 @@ function NS.RefreshMainFrame()
     end
 
     -- Resize main frame height dynamically
-    -- Header: padding(38) + save btn(24) + gap(5) + divider(1) + gap(4) + label(12) + gap(3) = 87
-    local headerHeight = mainFrame.contentTop + 24 + 5 + 1 + 4 + 12 + 3
+    -- Header: padding(38) + save btn(24) + gap(4) + scope btn(24) + gap(5) + divider(1) + gap(4) + label(12) + gap(3) = 115
+    local headerHeight = mainFrame.contentTop + 24 + 4 + NS.SCOPE_BTN_HEIGHT + 5 + 1 + 4 + 12 + 3
     local footerHeight = NS.PADDING
     local listHeight = count * NS.ROW_HEIGHT
     local totalHeight = headerHeight + footerHeight + math.max(40, listHeight)

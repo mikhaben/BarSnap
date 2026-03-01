@@ -27,6 +27,15 @@ local function GetActionIcon(action)
         return icon
     elseif t == "flyout" and id then
         return C_Spell and C_Spell.GetSpellTexture(id)
+    elseif t == "equipmentset" and action.name and C_EquipmentSet then
+        local setID = C_EquipmentSet.GetEquipmentSetID(action.name)
+        if setID then
+            local _, icon = C_EquipmentSet.GetEquipmentSetInfo(setID)
+            return icon
+        end
+    elseif t == "summonpet" and id and C_PetJournal then
+        local _, _, _, _, _, _, _, _, _, petIcon = C_PetJournal.GetPetInfoByPetID(id)
+        return petIcon
     end
     return nil
 end
@@ -58,7 +67,7 @@ end
 
 local function ShowIconPicker()
     if not currentIndex then return end
-    local preset = NS.db.presets[currentIndex]
+    local preset = NS.GetActivePresets()[currentIndex]
     if not preset or not preset.actions then return end
 
     local picker = CreateIconPicker(editorFrame)
@@ -163,12 +172,13 @@ StaticPopupDialogs["BARSNAP_DELETE_PRESET"] = {
     button2 = NO,
     OnAccept = function(self)
         local data = self.data
-        if not data or not NS.db then return end
+        if not data then return end
         local idx = data.idx
-        if not idx or not NS.db.presets[idx] then return end
+        local activePresets = NS.GetActivePresets()
+        if not idx or not activePresets[idx] then return end
         -- Verify name still matches to prevent wrong-preset deletion after index shifts
-        if NS.db.presets[idx].name ~= data.name then return end
-        table.remove(NS.db.presets, idx)
+        if activePresets[idx].name ~= data.name then return end
+        table.remove(activePresets, idx)
         NS.CloseEditor()
         NS.RefreshMainFrame()
     end,
@@ -219,15 +229,15 @@ function NS.CreateEditorFrame(parent)
 
     nameBox:SetScript("OnEscapePressed", function(self)
         -- Revert to saved name before losing focus
-        if currentIndex and NS.db.presets[currentIndex] then
-            self:SetText(NS.db.presets[currentIndex].name)
+        if currentIndex and NS.GetActivePresets()[currentIndex] then
+            self:SetText(NS.GetActivePresets()[currentIndex].name)
         end
         self:ClearFocus()
     end)
 
     nameBox:SetScript("OnEditFocusLost", function(self)
         if not currentIndex then return end
-        local preset = NS.db.presets[currentIndex]
+        local preset = NS.GetActivePresets()[currentIndex]
         if not preset then return end
 
         local newName = NS.ValidateName(self:GetText())
@@ -249,7 +259,7 @@ function NS.CreateEditorFrame(parent)
     changeIconBtn:SetText("Change Icon")
 
     changeIconBtn:SetScript("OnClick", function()
-        if not currentIndex or not NS.db.presets[currentIndex] then return end
+        if not currentIndex or not NS.GetActivePresets()[currentIndex] then return end
         if iconPickerFrame and iconPickerFrame:IsShown() then
             iconPickerFrame:Hide()
         else
@@ -284,7 +294,6 @@ function NS.CreateEditorFrame(parent)
             label:SetPoint("LEFT", cb, "RIGHT", 2, 0)
             label:SetText(item.label)
             label:SetTextColor(unpack(NS.COLOR_LABEL_GRAY))
-            cb.label = label
 
             cb:SetScript("OnClick", function(self)
                 if onClick then onClick(item.key, self:GetChecked()) end
@@ -306,7 +315,7 @@ function NS.CreateEditorFrame(parent)
     -- Category checkboxes (2-column)
     local catCBs, catLastRow = CreateTwoColCheckboxes(frame, NS.CATEGORIES, catHeader, function(key, checked)
         if not currentIndex then return end
-        local preset = NS.db.presets[currentIndex]
+        local preset = NS.GetActivePresets()[currentIndex]
         if not preset or not preset.filters then return end
         preset.filters[key] = checked and true or false
         NS.UpdateCategoryWarning()
@@ -329,7 +338,7 @@ function NS.CreateEditorFrame(parent)
     -- Bar checkboxes (2-column)
     local barCBs, barLastRow = CreateTwoColCheckboxes(frame, barItems, barHeader, function(key, checked)
         if not currentIndex then return end
-        local preset = NS.db.presets[currentIndex]
+        local preset = NS.GetActivePresets()[currentIndex]
         if not preset or not preset.barFilters then return end
         preset.barFilters[key] = checked and true or false
         NS.UpdateCategoryWarning()
@@ -352,19 +361,12 @@ function NS.CreateEditorFrame(parent)
     preserveLabel:SetPoint("LEFT", preserveCB, "RIGHT", 2, 0)
     preserveLabel:SetText("Keep unlisted slots")
     preserveLabel:SetTextColor(unpack(NS.COLOR_LABEL_GRAY))
-    preserveCB.label = preserveLabel
 
-    preserveCB:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Keep unlisted slots")
-        GameTooltip:AddLine("When enabled, slots not in this preset\nstay as-is instead of being cleared.", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    preserveCB:SetScript("OnLeave", GameTooltip_Hide)
+    NS.SetupTooltip(preserveCB, "Keep unlisted slots", "When enabled, slots not in this preset\nstay as-is instead of being cleared.")
 
     preserveCB:SetScript("OnClick", function(self)
         if not currentIndex then return end
-        local preset = NS.db.presets[currentIndex]
+        local preset = NS.GetActivePresets()[currentIndex]
         if not preset then return end
         preset.preserveLayout = self:GetChecked() and true or false
     end)
@@ -402,7 +404,7 @@ end
 ----------------------------------------------------------------------
 function NS.UpdateCategoryWarning()
     if not editorFrame or not currentIndex then return end
-    local preset = NS.db.presets[currentIndex]
+    local preset = NS.GetActivePresets()[currentIndex]
     if not preset then
         editorFrame.allDisabledWarn:Hide()
         return
@@ -442,7 +444,7 @@ function NS.OpenEditor(index)
         NS.CreateEditorFrame(NS.mainFrame)
     end
 
-    local preset = NS.db.presets[index]
+    local preset = NS.GetActivePresets()[index]
     if not preset then return end
 
     -- Close icon picker when switching presets
@@ -458,7 +460,7 @@ end
 ----------------------------------------------------------------------
 function NS.RefreshEditor()
     if not editorFrame or not currentIndex then return end
-    local preset = NS.db.presets[currentIndex]
+    local preset = NS.GetActivePresets()[currentIndex]
     if not preset then
         editorFrame:Hide()
         return

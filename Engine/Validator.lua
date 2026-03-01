@@ -27,10 +27,11 @@ end
 -- Appends " (2)", " (3)" etc. if needed
 ----------------------------------------------------------------------
 function NS.UniqueName(name, excludeIndex)
-    if not NS.db or not NS.db.presets then return name end
+    local presets = NS.GetActivePresets()
+    if not presets then return name end
 
     local function nameExists(n)
-        for i, preset in ipairs(NS.db.presets) do
+        for i, preset in ipairs(presets) do
             if i ~= excludeIndex and preset.name == n then
                 return true
             end
@@ -75,6 +76,8 @@ function NS.ValidateAction(action)
 
     elseif t == "mount" then
         if not id or not C_MountJournal then return false end
+        -- Random Favourite Mount is always available
+        if id == 0 or id == 0xFFFFFFF then return true end
         local name = C_MountJournal.GetMountInfoByID(id)
         return name ~= nil
 
@@ -84,6 +87,16 @@ function NS.ValidateAction(action)
 
     elseif t == "flyout" then
         return id ~= nil
+
+    elseif t == "equipmentset" then
+        if not action.name or not C_EquipmentSet then return false end
+        local setID = C_EquipmentSet.GetEquipmentSetID(action.name)
+        return setID ~= nil
+
+    elseif t == "summonpet" then
+        if not id or not C_PetJournal then return false end
+        local _, _, _, _, _, _, _, _, _, _, petID = C_PetJournal.GetPetInfoByPetID(id)
+        return petID ~= nil
 
     end
 

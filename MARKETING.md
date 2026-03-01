@@ -12,7 +12,7 @@ This file contains marketing materials for CurseForge publication.
 
 ## Short Description (Summary)
 
-Save and restore action bar presets with one click. Snapshot all 6 bars (72 slots), name your presets, filter by category, choose custom icons, and swap between farming, fighting, and fishing setups instantly. Supports spells, macros, items, mounts, toys, and flyouts.
+Save and restore action bar presets with one click. Snapshot all your action bars, name your presets, filter by category, choose custom icons, and swap between farming, fighting, and fishing setups instantly.
 
 ---
 
@@ -26,9 +26,10 @@ BarSnap lets you save your entire action bar layout as a named preset and restor
 
 ### Key Features
 
-- **Full Bar Capture** - Saves all 72 slots across bars 1-6 in a single snapshot. Spells, macros, items, mounts, toys, and flyouts are all captured
+- **Full Bar Capture** - Saves all action bars in a single snapshot. Spells, macros, items, mounts, toys, battle pets, equipment sets, and flyouts are all captured
 - **One-Click Restore** - Apply any preset instantly from the preset list. No dragging, no remembering where things go
-- **Category Filters** - Choose which action types to restore per preset. Restore spells but keep your current items, or restore everything except macros
+- **Category Filters** - Choose which action types to restore per preset. Filter by spells, macros, items, mounts, toys, or pets — restore only what you need
+- **Per-Bar Filters** - Enable or disable restoration for each individual action bar. Swap some bars while keeping others untouched
 - **Preserve Layout Mode** - Leave unlisted slots untouched instead of clearing them. Perfect for partial bar swaps where you want to keep some actions in place
 - **Custom Icons** - Pick any icon from Blizzard's built-in icon selector to personalize your presets
 - **Preset Editor** - Rename presets, change icons, toggle category filters, and manage options from a clean editor panel
@@ -88,5 +89,5 @@ BarSnap lets you save your entire action bar layout as a named preset and restor
 - "Farming bars, raid bars, PvP bars — switch instantly"
 - "Stop dragging spells. Start snapping bars."
 - "Your action bars, saved and ready when you need them"
-- "72 slots, one click, zero hassle"
+- "All your bars, one click, zero hassle"
 - "The action bar preset manager WoW should have built in"

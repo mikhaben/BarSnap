@@ -15,7 +15,9 @@ function NS.ScanBars()
         local actionType, id = GetActionInfo(slot)
 
         if actionType == "spell" then
-            scanBuffer[slot] = { type = "spell", id = id }
+            -- Normalize to base spell ID so presets survive talent/spec changes
+            local baseID = FindBaseSpellByID and FindBaseSpellByID(id) or id
+            scanBuffer[slot] = { type = "spell", id = baseID }
 
         elseif actionType == "item" then
             -- Check if this item is actually a toy
@@ -31,25 +33,46 @@ function NS.ScanBars()
             end
 
         elseif actionType == "macro" then
-            local name = GetMacroInfo(id)
-            if name then
-                scanBuffer[slot] = { type = "macro", name = name }
+            if id and id > 0 then  -- WoW bug: id=0 for broken/empty macros
+                local name = GetMacroInfo(id)
+                if name then
+                    scanBuffer[slot] = { type = "macro", name = name }
+                end
             end
 
         elseif actionType == "summonmount" then
             scanBuffer[slot] = { type = "mount", id = id }
 
-        elseif actionType == "companion" or actionType == "toy" then
-            -- Companion might be a toy; validate via C_ToyBox
-            if C_ToyBox and C_ToyBox.GetToyInfo and id then
+        elseif actionType == "toy" then
+            -- Trust WoW's type classification
+            scanBuffer[slot] = { type = "toy", id = id }
+
+        elseif actionType == "companion" then
+            -- Legacy type: check if toy, otherwise treat as battle pet
+            if id and C_ToyBox and C_ToyBox.GetToyInfo then
                 local toyID = C_ToyBox.GetToyInfo(id)
                 if toyID then
                     scanBuffer[slot] = { type = "toy", id = id }
+                else
+                    scanBuffer[slot] = { type = "summonpet", id = id }
                 end
+            elseif id then
+                scanBuffer[slot] = { type = "summonpet", id = id }
             end
 
         elseif actionType == "flyout" then
             scanBuffer[slot] = { type = "flyout", id = id }
+
+        elseif actionType == "equipmentset" then
+            local setName = GetActionText(slot)
+            if setName then
+                scanBuffer[slot] = { type = "equipmentset", name = setName }
+            end
+
+        elseif actionType == "summonpet" then
+            if id then
+                scanBuffer[slot] = { type = "summonpet", id = id }
+            end
 
         -- nil/unknown type → skip (sparse)
         end
