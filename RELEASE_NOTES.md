@@ -1,5 +1,25 @@
 # BarSnap Release Notes
 
+## Version 1.1.0 - Form Bars & Macro Scope Fix
+
+### New Features
+
+- **Druid Form & Dragonriding Bars** — Bars 9-11 (Bear form, Moonkin/Travel form, and Dragonriding/Skyriding) are now captured and restored alongside your regular action bars. Druids and dragonriders can now snapshot their full bar configuration.
+
+- **Form Bar Confirmation Popup** — A warning popup appears before applying a preset that would modify your form or dragonriding bars, so you never accidentally overwrite a bar you can't see. Inspired by ElvUI's special bar warnings.
+
+- **Per-Bar Filters Extended** — The preset editor now exposes per-bar toggles for bars 9-11 with descriptive labels ("Bar 9 — Bear", "Bar 10 — Moonkin / Travel", "Bar 11 — Dragonriding").
+
+### Bug Fixes
+
+- **Character Macro Restoration** — Fixed a bug where character-specific macros sharing a name with an account macro could restore the wrong macro. Each preset now records which macro pool an action came from and restores it from the correct pool.
+
+### Migration Notes
+
+- Existing presets continue to work unchanged. Bars 9-11 are disabled by default on presets saved before this update to prevent silent form bar modifications on upgrade — re-save your preset to enable the new bars.
+
+---
+
 ## Version 1.0.0 - Initial Release
 
 ### New Features
