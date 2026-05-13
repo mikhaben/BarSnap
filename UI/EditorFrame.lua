@@ -189,6 +189,36 @@ StaticPopupDialogs["BARSNAP_DELETE_PRESET"] = {
 }
 
 ----------------------------------------------------------------------
+-- Confirm before applying a preset that would modify special bars
+-- (Bear, Moonkin/Travel, Dragonriding). Text args:
+--   1st %s = preset name
+--   2nd %s = comma-separated bar labels
+-- self.data is { scope, name } — we re-resolve the preset at OnAccept
+-- time so deletion or rename between show and click doesn't apply the
+-- wrong preset, and a stale apply is silently dropped.
+----------------------------------------------------------------------
+StaticPopupDialogs["BARSNAP_CONFIRM_FORM_BARS"] = {
+    text = "Applying '%s' will modify: %s.\n\nContinue?",
+    button1 = YES,
+    button2 = NO,
+    OnAccept = function(self)
+        local data = self.data
+        if not data or not data.name then return end
+        if data.scope ~= NS.GetActiveScope() then return end
+        for _, p in ipairs(NS.GetActivePresets()) do
+            if p.name == data.name then
+                NS.ApplyPreset(p, true)
+                return
+            end
+        end
+    end,
+    hideOnEscape = 1,
+    timeout = 0,
+    whileDead = 1,
+    preferredIndex = 3,
+}
+
+----------------------------------------------------------------------
 -- Create the editor frame (anchored to right of main window)
 ----------------------------------------------------------------------
 function NS.CreateEditorFrame(parent)
@@ -332,7 +362,7 @@ function NS.CreateEditorFrame(parent)
     -- Bar filter items
     local barItems = {}
     for i = 1, NS.BAR_COUNT do
-        barItems[i] = { key = i, label = "Bar " .. i }
+        barItems[i] = { key = i, label = NS.BAR_LABELS[i] or ("Bar " .. i) }
     end
 
     -- Bar checkboxes (2-column)

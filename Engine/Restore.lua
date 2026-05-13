@@ -154,9 +154,49 @@ local function ClearSlot(slot)
 end
 
 ----------------------------------------------------------------------
+-- Returns a list of bar numbers (9-11) that this preset would visibly
+-- modify on apply, or nil if none. A bar counts as "modified" when its
+-- filter is enabled AND either the preset has actions in that slot range
+-- (will write) OR preserveLayout is off and the current bar has any
+-- actions to clear. No-op clears (empty preset slots + empty current
+-- slots) do not trigger the warning — false positives train users to
+-- click through every popup.
+----------------------------------------------------------------------
+function NS.GetAffectedSpecialBars(preset)
+    if not preset or not preset.barFilters then return nil end
+
+    local affected = nil
+    for bar = 9, NS.BAR_COUNT do
+        if preset.barFilters[bar] ~= false then
+            local slotMin = (bar - 1) * NS.SLOTS_PER_BAR + 1
+            local slotMax = bar * NS.SLOTS_PER_BAR
+            local affects = false
+
+            if preset.actions then
+                for slot = slotMin, slotMax do
+                    if preset.actions[slot] then affects = true; break end
+                end
+            end
+
+            if not affects and not preset.preserveLayout then
+                for slot = slotMin, slotMax do
+                    if GetActionInfo(slot) then affects = true; break end
+                end
+            end
+
+            if affects then
+                affected = affected or {}
+                affected[#affected + 1] = bar
+            end
+        end
+    end
+    return affected
+end
+
+----------------------------------------------------------------------
 -- Apply a full preset
 ----------------------------------------------------------------------
-function NS.ApplyPreset(preset)
+function NS.ApplyPreset(preset, skipConfirm)
     -- Guard: combat
     if not NS.CanModifyBars() then return end
 
@@ -164,6 +204,26 @@ function NS.ApplyPreset(preset)
     if not preset or not preset.actions then
         NS.Warn("Preset has no actions to restore.")
         return
+    end
+
+    -- Special-bar confirmation (Bear, Moonkin/Travel, Dragonriding)
+    if not skipConfirm then
+        local affected = NS.GetAffectedSpecialBars(preset)
+        if affected then
+            local labels = {}
+            for _, bar in ipairs(affected) do
+                labels[#labels + 1] = NS.BAR_LABELS[bar] or ("Bar " .. bar)
+            end
+            local popup = StaticPopup_Show("BARSNAP_CONFIRM_FORM_BARS",
+                preset.name or "?", table.concat(labels, ", "))
+            if popup then
+                popup.data = {
+                    scope = NS.GetActiveScope(),
+                    name  = preset.name,
+                }
+            end
+            return
+        end
     end
 
     local actionCount = NS.CountActions(preset.actions)

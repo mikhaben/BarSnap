@@ -36,7 +36,11 @@ function NS.ScanBars()
             if id and id > 0 then  -- WoW bug: id=0 for broken/empty macros
                 local name = GetMacroInfo(id)
                 if name then
-                    scanBuffer[slot] = { type = "macro", name = name }
+                    scanBuffer[slot] = {
+                        type = "macro",
+                        name = name,
+                        isCharacter = id > MAX_ACCOUNT_MACROS,
+                    }
                 end
             end
 

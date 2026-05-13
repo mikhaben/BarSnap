@@ -98,9 +98,17 @@ local function ValidatePresets(presets)
             if type(preset.barFilters) ~= "table" then
                 preset.barFilters = NS.DeepCopy(NS.DEFAULT_BAR_FILTERS)
             else
-                for bar = 1, NS.BAR_COUNT do
+                -- Existing bars: missing key means default-enabled
+                for bar = 1, 8 do
                     if preset.barFilters[bar] == nil then
                         preset.barFilters[bar] = true
+                    end
+                end
+                -- New form / dragonriding bars: legacy presets opt out by
+                -- default so an upgrade never silently clears slots 97-132
+                for bar = 9, NS.BAR_COUNT do
+                    if preset.barFilters[bar] == nil then
+                        preset.barFilters[bar] = false
                     end
                 end
             end
@@ -160,6 +168,7 @@ function NS.SetActiveScope(scope)
     if not NS.charDb then return end
     NS.charDb.scope = scope
     NS.CloseEditor()
+    StaticPopup_Hide("BARSNAP_CONFIRM_FORM_BARS")
     NS.RefreshMainFrame()
 end
 

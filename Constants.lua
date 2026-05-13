@@ -1,9 +1,13 @@
 local AddonName, NS = ...
 
--- Slot range (action bars 1-8, 12 slots each = 96)
+-- Slot range:
+-- bars 1-8 = slots 1-96 (regular).
+-- bars 9-11 = slots 97-132 (form / dragonriding pages used by druid Bear,
+--   druid Moonkin/Travel, and the Skyriding bonus bar on flying mounts).
+-- Override / Vehicle / Possess bars use runtime indices and are out of scope.
 NS.SLOT_MIN = 1
-NS.SLOT_MAX = 96
-NS.BAR_COUNT = 8
+NS.SLOT_MAX = 132
+NS.BAR_COUNT = 11
 NS.SLOTS_PER_BAR = 12
 
 -- Retry config for restore operations
@@ -30,10 +34,20 @@ NS.DEFAULT_FILTERS = {
     pets   = true,
 }
 
--- Default bar filters (all enabled)
+-- Default bar filters (all enabled for newly created presets;
+-- legacy presets default 9-11 to false during migration — see Core.lua)
 NS.DEFAULT_BAR_FILTERS = {
-    [1] = true, [2] = true, [3] = true, [4] = true,
-    [5] = true, [6] = true, [7] = true, [8] = true,
+    [1] = true, [2] = true, [3] = true, [4]  = true,
+    [5] = true, [6] = true, [7] = true, [8]  = true,
+    [9] = true, [10] = true, [11] = true,
+}
+
+-- Display labels for the bar-filter checkboxes. Generic "Bar N" is fine for
+-- 1-8; the special bars get descriptive labels so users know what they control.
+NS.BAR_LABELS = {
+    [9]  = "Bar 9 — Bear",
+    [10] = "Bar 10 — Moonkin / Travel",
+    [11] = "Bar 11 — Dragonriding",
 }
 
 -- Map GetActionInfo type strings to our category keys

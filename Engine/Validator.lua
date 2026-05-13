@@ -70,9 +70,7 @@ function NS.ValidateAction(action)
         return false
 
     elseif t == "macro" then
-        if not action.name then return false end
-        local idx = GetMacroIndexByName(action.name)
-        return idx ~= nil and idx > 0
+        return NS.FindMacroIndex(action) ~= nil
 
     elseif t == "mount" then
         if not id or not C_MountJournal then return false end
@@ -104,11 +102,33 @@ function NS.ValidateAction(action)
 end
 
 ----------------------------------------------------------------------
--- Find macro index by name
+-- Find macro index by name. New presets carry an explicit isCharacter
+-- marker — we search only that pool, so we never silently substitute a
+-- same-named macro from the other pool (e.g. user deleted their
+-- character macro between save and restore).
+-- Legacy presets (isCharacter == nil) fall back to searching both pools
+-- account-first, matching the previous GetMacroIndexByName behaviour.
 ----------------------------------------------------------------------
 function NS.FindMacroIndex(action)
     if not action or not action.name then return nil end
-    local idx = GetMacroIndexByName(action.name)
-    if idx and idx > 0 then return idx end
-    return nil
+
+    local accountEnd = MAX_ACCOUNT_MACROS
+    local charEnd    = MAX_ACCOUNT_MACROS + MAX_CHARACTER_MACROS
+
+    if action.isCharacter == true then
+        for i = accountEnd + 1, charEnd do
+            if GetMacroInfo(i) == action.name then return i end
+        end
+        return nil
+    elseif action.isCharacter == false then
+        for i = 1, accountEnd do
+            if GetMacroInfo(i) == action.name then return i end
+        end
+        return nil
+    else
+        for i = 1, charEnd do
+            if GetMacroInfo(i) == action.name then return i end
+        end
+        return nil
+    end
 end
