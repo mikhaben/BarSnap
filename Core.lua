@@ -83,6 +83,10 @@ end
 -- Validate a presets array (skip corrupt entries, repair missing fields)
 ----------------------------------------------------------------------
 local function ValidatePresets(presets)
+    if type(presets) ~= "table" then
+        NS.Warn("Preset store was corrupt (not a table) — resetting")
+        return {}
+    end
     local valid = {}
     for i, preset in ipairs(presets) do
         if type(preset) == "table" and type(preset.name) == "string" and preset.name ~= "" then
@@ -95,21 +99,20 @@ local function ValidatePresets(presets)
                     end
                 end
             end
+            -- Legacy-safe default: bars 1-8 enabled, 9-11 (form/dragonriding) disabled.
+            -- Used for missing-entirely AND partially-populated tables so a v1.0.0
+            -- preset upgrade can never silently clear slots 97-132.
             if type(preset.barFilters) ~= "table" then
-                preset.barFilters = NS.DeepCopy(NS.DEFAULT_BAR_FILTERS)
-            else
-                -- Existing bars: missing key means default-enabled
-                for bar = 1, 8 do
-                    if preset.barFilters[bar] == nil then
-                        preset.barFilters[bar] = true
-                    end
+                preset.barFilters = {}
+            end
+            for bar = 1, 8 do
+                if preset.barFilters[bar] == nil then
+                    preset.barFilters[bar] = true
                 end
-                -- New form / dragonriding bars: legacy presets opt out by
-                -- default so an upgrade never silently clears slots 97-132
-                for bar = 9, NS.BAR_COUNT do
-                    if preset.barFilters[bar] == nil then
-                        preset.barFilters[bar] = false
-                    end
+            end
+            for bar = 9, NS.BAR_COUNT do
+                if preset.barFilters[bar] == nil then
+                    preset.barFilters[bar] = false
                 end
             end
             if type(preset.actions) ~= "table" then
@@ -168,7 +171,7 @@ function NS.SetActiveScope(scope)
     if not NS.charDb then return end
     NS.charDb.scope = scope
     NS.CloseEditor()
-    StaticPopup_Hide("BARSNAP_CONFIRM_FORM_BARS")
+    StaticPopup_Hide(NS.POPUP_CONFIRM_FORM_BARS)
     NS.RefreshMainFrame()
 end
 

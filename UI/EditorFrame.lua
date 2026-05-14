@@ -164,21 +164,35 @@ local function ShowIconPicker()
 end
 
 ----------------------------------------------------------------------
+-- Verify a captured preset reference is still in the active scope's
+-- presets array. Captures-by-reference are stable across rename, and
+-- this membership check rejects deletion and scope-switch races.
+----------------------------------------------------------------------
+local function PresetStillActive(preset)
+    if not preset then return false end
+    for _, p in ipairs(NS.GetActivePresets()) do
+        if p == preset then return true end
+    end
+    return false
+end
+
+----------------------------------------------------------------------
 -- Delete confirmation popup
 ----------------------------------------------------------------------
-StaticPopupDialogs["BARSNAP_DELETE_PRESET"] = {
+StaticPopupDialogs[NS.POPUP_DELETE_PRESET] = {
     text = "Delete preset '%s'?",
     button1 = YES,
     button2 = NO,
     OnAccept = function(self)
         local data = self.data
-        if not data then return end
-        local idx = data.idx
+        if not data or not PresetStillActive(data.preset) then return end
         local activePresets = NS.GetActivePresets()
-        if not idx or not activePresets[idx] then return end
-        -- Verify name still matches to prevent wrong-preset deletion after index shifts
-        if activePresets[idx].name ~= data.name then return end
-        table.remove(activePresets, idx)
+        for i, p in ipairs(activePresets) do
+            if p == data.preset then
+                table.remove(activePresets, i)
+                break
+            end
+        end
         NS.CloseEditor()
         NS.RefreshMainFrame()
     end,
@@ -193,30 +207,51 @@ StaticPopupDialogs["BARSNAP_DELETE_PRESET"] = {
 -- (Bear, Moonkin/Travel, Dragonriding). Text args:
 --   1st %s = preset name
 --   2nd %s = comma-separated bar labels
--- self.data is { scope, name } — we re-resolve the preset at OnAccept
--- time so deletion or rename between show and click doesn't apply the
--- wrong preset, and a stale apply is silently dropped.
+-- self.data captures the preset by reference; on accept we verify it's
+-- still in the active scope (rejects deletion, rename-collision, and
+-- scope-switch races).
 ----------------------------------------------------------------------
-StaticPopupDialogs["BARSNAP_CONFIRM_FORM_BARS"] = {
+StaticPopupDialogs[NS.POPUP_CONFIRM_FORM_BARS] = {
     text = "Applying '%s' will modify: %s.\n\nContinue?",
     button1 = YES,
     button2 = NO,
     OnAccept = function(self)
         local data = self.data
-        if not data or not data.name then return end
-        if data.scope ~= NS.GetActiveScope() then return end
-        for _, p in ipairs(NS.GetActivePresets()) do
-            if p.name == data.name then
-                NS.ApplyPreset(p, true)
-                return
-            end
-        end
+        if not data or not PresetStillActive(data.preset) then return end
+        NS.ApplyPreset(data.preset)
     end,
     hideOnEscape = 1,
     timeout = 0,
     whileDead = 1,
     preferredIndex = 3,
 }
+
+----------------------------------------------------------------------
+-- Apply a preset, prompting first if it would modify form/dragonriding
+-- bars. This is the UI-level entry point; Engine/Restore.lua's
+-- ApplyPreset is the unconditional applier.
+----------------------------------------------------------------------
+function NS.RequestApplyPreset(preset)
+    if not preset then return end
+    if not NS.CanModifyBars() then return end
+    local affected = NS.GetAffectedSpecialBars(preset)
+    if not affected then
+        NS.ApplyPreset(preset)
+        return
+    end
+
+    local labels = {}
+    for _, bar in ipairs(affected) do
+        labels[#labels + 1] = NS.BAR_LABELS[bar] or ("Bar " .. bar)
+    end
+    local popup = StaticPopup_Show(NS.POPUP_CONFIRM_FORM_BARS,
+        preset.name or "?", table.concat(labels, ", "))
+    if popup then
+        popup.data = { preset = preset }
+    else
+        NS.Warn("Couldn't show confirmation popup — close other popups first")
+    end
+end
 
 ----------------------------------------------------------------------
 -- Create the editor frame (anchored to right of main window)
@@ -470,9 +505,8 @@ end
 -- Open editor for a specific preset index
 ----------------------------------------------------------------------
 function NS.OpenEditor(index)
-    if not editorFrame then
-        NS.CreateEditorFrame(NS.mainFrame)
-    end
+    -- Editor is created alongside the main frame; no late-construction path.
+    if not editorFrame then return end
 
     local preset = NS.GetActivePresets()[index]
     if not preset then return end

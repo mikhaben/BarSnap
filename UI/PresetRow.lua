@@ -72,13 +72,15 @@ function NS.InitPresetRow(row, preset, index)
     row.nameText:SetTextColor(unpack(NS.COLOR_WHITE))
 
     row.applyBtn:SetScript("OnClick", function()
-        NS.ApplyPreset(preset)
+        NS.RequestApplyPreset(preset)
     end)
 
     row.deleteBtn:SetScript("OnClick", function()
-        local popup = StaticPopup_Show("BARSNAP_DELETE_PRESET", preset.name)
+        local popup = StaticPopup_Show(NS.POPUP_DELETE_PRESET, preset.name)
         if popup then
-            popup.data = { idx = index, name = preset.name }
+            popup.data = { preset = preset }
+        else
+            NS.Warn("Couldn't show confirmation popup — close other popups first")
         end
     end)
 

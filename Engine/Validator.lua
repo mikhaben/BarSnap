@@ -49,59 +49,6 @@ function NS.UniqueName(name, excludeIndex)
 end
 
 ----------------------------------------------------------------------
--- Validate a single action entry can be restored
--- Returns true if the action's requirements are met
-----------------------------------------------------------------------
-function NS.ValidateAction(action)
-    if not action or type(action) ~= "table" then return false end
-
-    local t = action.type
-    local id = action.id
-
-    if t == "spell" then
-        return id and IsPlayerSpell(id)
-
-    elseif t == "item" then
-        if not id then return false end
-        -- Item in bags OR is a toy the player has
-        local count = GetItemCount(id)
-        if count and count > 0 then return true end
-        if C_ToyBox and C_ToyBox.PlayerHasToy and C_ToyBox.PlayerHasToy(id) then return true end
-        return false
-
-    elseif t == "macro" then
-        return NS.FindMacroIndex(action) ~= nil
-
-    elseif t == "mount" then
-        if not id or not C_MountJournal then return false end
-        -- Random Favourite Mount is always available
-        if id == 0 or id == 0xFFFFFFF then return true end
-        local name = C_MountJournal.GetMountInfoByID(id)
-        return name ~= nil
-
-    elseif t == "toy" then
-        if not id or not C_ToyBox then return false end
-        return C_ToyBox.PlayerHasToy(id)
-
-    elseif t == "flyout" then
-        return id ~= nil
-
-    elseif t == "equipmentset" then
-        if not action.name or not C_EquipmentSet then return false end
-        local setID = C_EquipmentSet.GetEquipmentSetID(action.name)
-        return setID ~= nil
-
-    elseif t == "summonpet" then
-        if not id or not C_PetJournal then return false end
-        local _, _, _, _, _, _, _, _, _, _, petID = C_PetJournal.GetPetInfoByPetID(id)
-        return petID ~= nil
-
-    end
-
-    return false
-end
-
-----------------------------------------------------------------------
 -- Find macro index by name. New presets carry an explicit isCharacter
 -- marker — we search only that pool, so we never silently substitute a
 -- same-named macro from the other pool (e.g. user deleted their
@@ -112,23 +59,20 @@ end
 function NS.FindMacroIndex(action)
     if not action or not action.name then return nil end
 
-    local accountEnd = MAX_ACCOUNT_MACROS
-    local charEnd    = MAX_ACCOUNT_MACROS + MAX_CHARACTER_MACROS
+    local accountEnd = MAX_ACCOUNT_MACROS or 120
+    local charEnd    = accountEnd + (MAX_CHARACTER_MACROS or 18)
 
+    local lo, hi
     if action.isCharacter == true then
-        for i = accountEnd + 1, charEnd do
-            if GetMacroInfo(i) == action.name then return i end
-        end
-        return nil
+        lo, hi = accountEnd + 1, charEnd
     elseif action.isCharacter == false then
-        for i = 1, accountEnd do
-            if GetMacroInfo(i) == action.name then return i end
-        end
-        return nil
+        lo, hi = 1, accountEnd
     else
-        for i = 1, charEnd do
-            if GetMacroInfo(i) == action.name then return i end
-        end
-        return nil
+        lo, hi = 1, charEnd
     end
+
+    for i = lo, hi do
+        if GetMacroInfo(i) == action.name then return i end
+    end
+    return nil
 end

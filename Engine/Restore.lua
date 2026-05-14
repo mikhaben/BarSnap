@@ -1,114 +1,129 @@
 local AddonName, NS = ...
 
 ----------------------------------------------------------------------
--- Place a single action into a slot by type
--- Returns true on success
+-- Per-apply lookup caches. Built once at the start of ApplyPreset
+-- and reused across all 132 slots (including retries) so a preset with
+-- N mounts on a maxed-collector account doesn't do N × 500 journal scans.
 ----------------------------------------------------------------------
-local function PlaceActionByType(slot, action)
+local mountCache = nil   -- [mountID] = displayIndex
+local flyoutCache = nil  -- [flyoutID] = spellbookIndex
+
+local function BuildMountCache()
+    local cache = {}
+    if not C_MountJournal then return cache end
+    local n = C_MountJournal.GetNumDisplayedMounts() or 0
+    for i = 1, n do
+        local _, _, _, _, _, _, _, _, _, _, _, mountID = C_MountJournal.GetDisplayedMountInfo(i)
+        if mountID then cache[mountID] = i end
+    end
+    return cache
+end
+
+local function BuildFlyoutCache()
+    local cache = {}
+    if not (C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines) then return cache end
+    local numTabs = C_SpellBook.GetNumSpellBookSkillLines() or 0
+    for tab = 1, numTabs do
+        local tabInfo = C_SpellBook.GetSpellBookSkillLineInfo(tab)
+        if tabInfo then
+            for i = tabInfo.itemIndexOffset + 1, tabInfo.itemIndexOffset + tabInfo.numSpellBookItems do
+                local itemInfo = C_SpellBook.GetSpellBookItemInfo(i, Enum.SpellBookSpellBank.Player)
+                if itemInfo and itemInfo.itemType == Enum.SpellBookItemType.Flyout then
+                    cache[itemInfo.actionID] = i
+                end
+            end
+        end
+    end
+    return cache
+end
+
+----------------------------------------------------------------------
+-- Place a single action into a slot by type. Returns true on success.
+-- Caller wraps in pcall (see PlaceActionByType) so an unexpected WoW
+-- API error doesn't kill the whole apply loop.
+----------------------------------------------------------------------
+local function PlaceActionImpl(slot, action)
     if not action or not action.type then return false end
 
-    local ok, result = pcall(function()
-        ClearCursor()
+    ClearCursor()
 
-        local t = action.type
-        local id = action.id
+    local t = action.type
+    local id = action.id
 
-        if t == "spell" then
-            if not id or not IsPlayerSpell(id) then return false end
-            C_Spell.PickupSpell(id)
+    if t == "spell" then
+        if not id or not IsPlayerSpell(id) then return false end
+        C_Spell.PickupSpell(id)
 
-        elseif t == "item" then
-            if not id then return false end
-            PickupItem(id)
+    elseif t == "item" then
+        if not id then return false end
+        PickupItem(id)
 
-        elseif t == "macro" then
-            local macroIdx = NS.FindMacroIndex(action)
-            if not macroIdx then return false end
-            PickupMacro(macroIdx)
+    elseif t == "macro" then
+        local macroIdx = NS.FindMacroIndex(action)
+        if not macroIdx then return false end
+        PickupMacro(macroIdx)
 
-        elseif t == "mount" then
-            if not id or not C_MountJournal then return false end
-            -- Random Favourite Mount uses sentinel ID
-            if id == 0 or id == 0xFFFFFFF then
-                C_MountJournal.Pickup(0)
-            else
-                -- Must use C_MountJournal.Pickup(displayIndex), not C_Spell.PickupSpell —
-                -- mount spells placed as spells don't stick on action bars.
-                local numMounts = C_MountJournal.GetNumDisplayedMounts()
-                local found = false
-                for i = 1, numMounts do
-                    local _, _, _, _, _, _, _, _, _, _, _, mountID = C_MountJournal.GetDisplayedMountInfo(i)
-                    if mountID == id then
-                        C_MountJournal.Pickup(i)
-                        found = true
-                        break
-                    end
-                end
-                if not found then
-                    -- Fallback: mount journal may be filtered, try spell ID
-                    local _, spellID = C_MountJournal.GetMountInfoByID(id)
-                    if spellID then
-                        C_Spell.PickupSpell(spellID)
-                    else
-                        return false
-                    end
-                end
-            end
-
-        elseif t == "toy" then
-            if not id or not C_ToyBox then return false end
-            C_ToyBox.PickupToyBoxItem(id)
-
-        elseif t == "flyout" then
-            if not id then return false end
-            -- Flyout IDs are not spell IDs; find matching flyout in spellbook via GetSpellBookItemInfo
-            local numTabs = C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines and C_SpellBook.GetNumSpellBookSkillLines() or 0
-            local placed = false
-            for tab = 1, numTabs do
-                local tabInfo = C_SpellBook.GetSpellBookSkillLineInfo(tab)
-                if tabInfo then
-                    for i = tabInfo.itemIndexOffset + 1, tabInfo.itemIndexOffset + tabInfo.numSpellBookItems do
-                        local itemInfo = C_SpellBook.GetSpellBookItemInfo(i, Enum.SpellBookSpellBank.Player)
-                        if itemInfo and itemInfo.itemType == Enum.SpellBookItemType.Flyout and itemInfo.actionID == id then
-                            C_SpellBook.PickupSpellBookItem(i, Enum.SpellBookSpellBank.Player)
-                            placed = true
-                            break
-                        end
-                    end
-                end
-                if placed then break end
-            end
-
-        elseif t == "equipmentset" then
-            if not action.name or not C_EquipmentSet then return false end
-            local setID = C_EquipmentSet.GetEquipmentSetID(action.name)
-            if not setID then return false end
-            C_EquipmentSet.PickupEquipmentSet(setID)
-
-        elseif t == "summonpet" then
-            if not id or not C_PetJournal then return false end
-            C_PetJournal.PickupPet(id)
-
+    elseif t == "mount" then
+        if not id or not C_MountJournal then return false end
+        -- Random Favourite Mount uses sentinel ID
+        if id == 0 or id == 0xFFFFFFF then
+            C_MountJournal.Pickup(0)
         else
-            return false
+            local displayIndex = mountCache and mountCache[id]
+            if displayIndex then
+                C_MountJournal.Pickup(displayIndex)
+            else
+                -- Journal filter may have hidden the mount; fall back to its spell ID
+                local _, spellID = C_MountJournal.GetMountInfoByID(id)
+                if spellID then
+                    C_Spell.PickupSpell(spellID)
+                else
+                    return false
+                end
+            end
         end
 
-        -- If cursor has something, place it
-        if GetCursorInfo() then
-            PlaceAction(slot)
-            ClearCursor()
-            return true
-        end
+    elseif t == "toy" then
+        if not id or not C_ToyBox then return false end
+        C_ToyBox.PickupToyBoxItem(id)
 
-        ClearCursor()
-        return false
-    end)
+    elseif t == "flyout" then
+        if not id then return false end
+        local spellbookIdx = flyoutCache and flyoutCache[id]
+        if not spellbookIdx then return false end
+        C_SpellBook.PickupSpellBookItem(spellbookIdx, Enum.SpellBookSpellBank.Player)
 
-    if not ok then
-        ClearCursor()
+    elseif t == "equipmentset" then
+        if not action.name or not C_EquipmentSet then return false end
+        local setID = C_EquipmentSet.GetEquipmentSetID(action.name)
+        if not setID then return false end
+        C_EquipmentSet.PickupEquipmentSet(setID)
+
+    elseif t == "summonpet" then
+        if not id or not C_PetJournal then return false end
+        C_PetJournal.PickupPet(id)
+
+    else
         return false
     end
 
+    if GetCursorInfo() then
+        PlaceAction(slot)
+        ClearCursor()
+        return true
+    end
+
+    ClearCursor()
+    return false
+end
+
+local function PlaceActionByType(slot, action)
+    local ok, result = pcall(PlaceActionImpl, slot, action)
+    if not ok then
+        ClearCursor()
+        NS.Warn("Place error (slot " .. slot .. "): " .. tostring(result))
+        return false
+    end
     return result
 end
 
@@ -120,7 +135,6 @@ local SAFETY_MAX = 10  -- absolute ceiling even if RETRY_MAX is corrupted
 local function PlaceWithRetry(slot, action, attempt, callback)
     attempt = attempt or 1
 
-    -- Safety: hard cap to prevent infinite loops
     if attempt > SAFETY_MAX then
         if callback then callback(false) end
         return
@@ -154,12 +168,34 @@ local function ClearSlot(slot)
 end
 
 ----------------------------------------------------------------------
+-- Decide what to do with a single slot. Three outcomes:
+--   action  → place this action
+--   "skip"  → leave the slot entirely alone (no place, no clear)
+--   nil     → no action to place; caller may clear based on preserveLayout
+--
+-- "skip" is reserved for disabled bars: a user (or the legacy-preset
+-- migration) opting out of an entire bar means "don't touch it", not
+-- "wipe it". This is what makes the bars-9-11 migration safety hold —
+-- a legacy preset whose barFilters[9-11] default to false will leave
+-- form/dragonriding bars untouched even when preserveLayout is off.
+----------------------------------------------------------------------
+local function SlotAction(preset, slot, bar)
+    if preset.barFilters and preset.barFilters[bar] == false then return "skip" end
+    local action = preset.actions[slot]
+    if not action then return nil end
+    local fk = NS.TYPE_MAP[action.type]
+    if fk and preset.filters and preset.filters[fk] == false then return nil end
+    return action
+end
+
+----------------------------------------------------------------------
 -- Returns a list of bar numbers (9-11) that this preset would visibly
 -- modify on apply, or nil if none. A bar counts as "modified" when its
--- filter is enabled AND either the preset has actions in that slot range
--- (will write) OR preserveLayout is off and the current bar has any
--- actions to clear. No-op clears (empty preset slots + empty current
--- slots) do not trigger the warning — false positives train users to
+-- filter is enabled AND either the preset has actions that would
+-- actually be placed (passing category filters) OR preserveLayout is
+-- off and the current bar has any actions to clear. No-op clears
+-- (empty preset slots + empty current slots) and category-filtered
+-- slots do not trigger the warning — false positives train users to
 -- click through every popup.
 ----------------------------------------------------------------------
 function NS.GetAffectedSpecialBars(preset)
@@ -174,7 +210,14 @@ function NS.GetAffectedSpecialBars(preset)
 
             if preset.actions then
                 for slot = slotMin, slotMax do
-                    if preset.actions[slot] then affects = true; break end
+                    local action = preset.actions[slot]
+                    if action then
+                        local fk = NS.TYPE_MAP[action.type]
+                        if not (fk and preset.filters and preset.filters[fk] == false) then
+                            affects = true
+                            break
+                        end
+                    end
                 end
             end
 
@@ -194,43 +237,22 @@ function NS.GetAffectedSpecialBars(preset)
 end
 
 ----------------------------------------------------------------------
--- Apply a full preset
+-- Apply a full preset. Combat-guarded; does not show any UI. Callers
+-- that need a form-bar confirmation popup go through
+-- NS.RequestApplyPreset (UI layer).
 ----------------------------------------------------------------------
-function NS.ApplyPreset(preset, skipConfirm)
-    -- Guard: combat
+function NS.ApplyPreset(preset)
     if not NS.CanModifyBars() then return end
 
-    -- Guard: nil/empty preset
     if not preset or not preset.actions then
         NS.Warn("Preset has no actions to restore.")
         return
     end
 
-    -- Special-bar confirmation (Bear, Moonkin/Travel, Dragonriding)
-    if not skipConfirm then
-        local affected = NS.GetAffectedSpecialBars(preset)
-        if affected then
-            local labels = {}
-            for _, bar in ipairs(affected) do
-                labels[#labels + 1] = NS.BAR_LABELS[bar] or ("Bar " .. bar)
-            end
-            local popup = StaticPopup_Show("BARSNAP_CONFIRM_FORM_BARS",
-                preset.name or "?", table.concat(labels, ", "))
-            if popup then
-                popup.data = {
-                    scope = NS.GetActiveScope(),
-                    name  = preset.name,
-                }
-            end
-            return
-        end
-    end
-
-    local actionCount = NS.CountActions(preset.actions)
-    if actionCount == 0 then
-        NS.Warn("Preset '" .. (preset.name or "?") .. "' is empty — nothing to restore.")
-        return
-    end
+    -- Populate caches for this apply (cleared at the end so the journal
+    -- and spellbook can refilter freely afterwards).
+    mountCache = BuildMountCache()
+    flyoutCache = BuildFlyoutCache()
 
     local placed = 0
     local skipped = 0
@@ -240,7 +262,9 @@ function NS.ApplyPreset(preset, skipConfirm)
         pending = pending - 1
         if pending > 0 then return end
 
-        -- Summary
+        mountCache = nil
+        flyoutCache = nil
+
         if placed == 0 and skipped == 0 then
             NS.Print("Applied '" .. preset.name .. "' (no matching actions)")
         elseif skipped == 0 then
@@ -252,42 +276,19 @@ function NS.ApplyPreset(preset, skipConfirm)
 
     for slot = NS.SLOT_MIN, NS.SLOT_MAX do
         local bar = math.ceil(slot / NS.SLOTS_PER_BAR)
+        local outcome = SlotAction(preset, slot, bar)
 
-        if preset.barFilters and preset.barFilters[bar] == false then
-            -- Bar disabled — clear or skip
-            if not preset.preserveLayout then
-                ClearSlot(slot)
-            end
-        else
-            local action = preset.actions[slot]
-
-            if action == nil then
-                -- No action for this slot
-                if not preset.preserveLayout then
-                    ClearSlot(slot)
-                end
-            else
-                -- Check category filter
-                local fk = NS.TYPE_MAP[action.type]
-
-                if fk and preset.filters and preset.filters[fk] == false then
-                    -- Category disabled — clear slot unless preserveLayout
-                    if not preset.preserveLayout then
-                        ClearSlot(slot)
-                    end
-                else
-                    -- Attempt to place
-                    pending = pending + 1
-                    PlaceWithRetry(slot, action, 1, function(success)
-                        if success then
-                            placed = placed + 1
-                        else
-                            skipped = skipped + 1
-                        end
-                        onComplete()
-                    end)
-                end
-            end
+        if outcome == "skip" then
+            -- Bar disabled — leave the slot exactly as it is
+        elseif outcome then
+            pending = pending + 1
+            PlaceWithRetry(slot, outcome, 1, function(success)
+                if success then placed = placed + 1
+                else skipped = skipped + 1 end
+                onComplete()
+            end)
+        elseif not preset.preserveLayout then
+            ClearSlot(slot)
         end
     end
 
