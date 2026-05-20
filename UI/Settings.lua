@@ -21,16 +21,21 @@ function NS.InitializeSettings()
     author:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
     author:SetText("by justLuther")
 
-    -- Slash command hint
+    -- Slash command hints
     local hint = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     hint:SetPoint("TOPLEFT", author, "BOTTOMLEFT", 0, -6)
     hint:SetText("/bs or /barsnap — toggle window")
     hint:SetTextColor(unpack(NS.COLOR_GRAY))
 
+    local debugHint = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    debugHint:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -4)
+    debugHint:SetText("/bs debug — dump every non-empty action slot to chat (diagnostic)")
+    debugHint:SetTextColor(unpack(NS.COLOR_GRAY))
+
     -- Open button
     local openBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
     openBtn:SetSize(160, 28)
-    openBtn:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -16)
+    openBtn:SetPoint("TOPLEFT", debugHint, "BOTTOMLEFT", 0, -16)
     openBtn:SetText("Open BarSnap")
     openBtn:SetScript("OnClick", function()
         NS.ToggleMainFrame()
