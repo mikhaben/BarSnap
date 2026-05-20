@@ -48,31 +48,3 @@ function NS.UniqueName(name, excludeIndex)
     return name .. " (" .. suffix .. ")"
 end
 
-----------------------------------------------------------------------
--- Find macro index by name. New presets carry an explicit isCharacter
--- marker — we search only that pool, so we never silently substitute a
--- same-named macro from the other pool (e.g. user deleted their
--- character macro between save and restore).
--- Legacy presets (isCharacter == nil) fall back to searching both pools
--- account-first, matching the previous GetMacroIndexByName behaviour.
-----------------------------------------------------------------------
-function NS.FindMacroIndex(action)
-    if not action or not action.name then return nil end
-
-    local accountEnd = MAX_ACCOUNT_MACROS or 120
-    local charEnd    = accountEnd + (MAX_CHARACTER_MACROS or 18)
-
-    local lo, hi
-    if action.isCharacter == true then
-        lo, hi = accountEnd + 1, charEnd
-    elseif action.isCharacter == false then
-        lo, hi = 1, accountEnd
-    else
-        lo, hi = 1, charEnd
-    end
-
-    for i = lo, hi do
-        if GetMacroInfo(i) == action.name then return i end
-    end
-    return nil
-end

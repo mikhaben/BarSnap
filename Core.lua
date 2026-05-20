@@ -44,6 +44,22 @@ local function MergeDefaults(saved, defaults)
 end
 
 ----------------------------------------------------------------------
+-- DJB2 hash of a macro body. Whitespace-normalized (matches ABP's PackMacro)
+-- so trivial formatting changes don't change the hash. Returns nil for
+-- empty bodies — those carry no identifying information.
+----------------------------------------------------------------------
+function NS.HashMacroBody(body)
+    if not body or body == "" then return nil end
+    body = body:gsub("^%s+", ""):gsub("%s+\n", "\n"):gsub("\n%s+", "\n"):gsub("%s+$", "")
+    if body == "" then return nil end
+    local h = 5381
+    for i = 1, #body do
+        h = (h * 33 + body:byte(i)) % 2147483648
+    end
+    return h
+end
+
+----------------------------------------------------------------------
 -- Chat helpers
 ----------------------------------------------------------------------
 function NS.Print(msg)
@@ -99,18 +115,21 @@ local function ValidatePresets(presets)
                     end
                 end
             end
-            -- Legacy-safe default: bars 1-8 enabled, 9-11 (form/dragonriding) disabled.
-            -- Used for missing-entirely AND partially-populated tables so a v1.0.0
-            -- preset upgrade can never silently clear slots 97-132.
+            -- Migration safety: when upgrading from a pre-1.2 preset that
+            -- never scanned slots 97-180, we default the new bars to
+            -- disabled so apply can't silently clear those slots. Bars
+            -- 7-12 stay disabled here for legacy presets too (we don't
+            -- know whether a legacy preset has valid form-bar data) —
+            -- new presets get the proper defaults from DEFAULT_BAR_FILTERS.
             if type(preset.barFilters) ~= "table" then
                 preset.barFilters = {}
             end
-            for bar = 1, 8 do
+            for bar = 1, 6 do
                 if preset.barFilters[bar] == nil then
                     preset.barFilters[bar] = true
                 end
             end
-            for bar = 9, NS.BAR_COUNT do
+            for bar = 7, NS.BAR_COUNT do
                 if preset.barFilters[bar] == nil then
                     preset.barFilters[bar] = false
                 end
@@ -213,6 +232,11 @@ end
 ----------------------------------------------------------------------
 SLASH_BARSNAP1 = "/bs"
 SLASH_BARSNAP2 = "/barsnap"
-SlashCmdList["BARSNAP"] = function()
+SlashCmdList["BARSNAP"] = function(msg)
+    msg = msg and msg:trim():lower() or ""
+    if msg == "debug" then
+        NS.DebugScan()
+        return
+    end
     NS.ToggleMainFrame()
 end

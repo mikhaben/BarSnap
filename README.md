@@ -4,16 +4,19 @@ A World of Warcraft addon that saves and restores action bar presets — switch 
 
 ## Features
 
-- **Preset Saving** — Capture all action bars into a named preset with one click
+- **Preset Saving** — Capture all 180 action bar slots (bars 1-15) into a named preset with one click
 - **One-Click Restore** — Apply any saved preset to instantly swap your entire action bar configuration
 - **Global & Character Scopes** — Save presets globally (shared across characters) or per-character. Toggle scope with one click
 - **Smart Icons** — Each preset shows the icon from its first populated slot, or customize with the built-in icon picker
 - **Category Filters** — Toggle which action types restore (Spells, Macros, Items, Mounts, Toys, Pets)
-- **Per-Bar Filters** — Enable or disable restoration for each individual action bar
+- **Per-Bar Filters** — Enable or disable restoration for each individual action bar (1-15); hover tooltips explain which bars overlap with class form/stance pages and the modern Action Bar 6-8 frames
+- **Special-Bar Confirmation** — Optional popup warns before applying a preset that would modify Druid form / Rogue stealth / Warrior stance / Dragonriding slots, so you never overwrite a bar you can't see
+- **Robust Macro Handling** — Macros are tracked by name, pool (account vs character), and body hash, so renamed or re-pooled macros still restore correctly
 - **Layout Preservation** — Option to keep unlisted slots unchanged, or clear them when applying a preset
 - **Preset Management** — Edit names, change icons, delete presets, and view action counts
 - **Draggable Window** — Floating, draggable UI window with ESC-to-close support
 - **Combat Safe** — Cannot save or apply presets while in combat (WoW combat lockdown restriction)
+- **Diagnostic Output** — `/bs debug` dumps every non-empty slot to chat with bar labels and slot ranges, for troubleshooting
 
 ## Quick Start
 
@@ -29,6 +32,7 @@ A World of Warcraft addon that saves and restores action bar presets — switch 
 | Command | Effect |
 |---------|--------|
 | `/bs` or `/barsnap` | Toggle the main window |
+| `/bs debug` | Print every non-empty action slot to chat — shows BarSnap bar, slot range, action type, macro pool, etc. Useful for correlating your in-game UI to BarSnap's bar numbering. |
 
 ## Main Window
 
@@ -70,7 +74,9 @@ Toggle which action types restore when applying the preset:
 
 ### Bar Filters
 
-Toggle which bars are included when restoring. Disable a bar to leave all its slots untouched.
+Toggle which bars are included when restoring. Disable a bar to leave all its slots untouched. Hover any checkbox for a tooltip explaining the bar's slot range and class context (e.g. Bar 7 doubles as Druid Bear form, Bar 13 maps to Blizzard's visible Action Bar 6).
+
+New presets default the visible action bars (1-6 and 13-15) to enabled and the class form/Dragonriding pages (7-12) to disabled — opt in to those bars per preset if you want BarSnap to manage them.
 
 ### Options
 
@@ -95,19 +101,21 @@ Click the trash icon to permanently delete a preset (cannot be undone).
 ```
 BarSnap/
 ├── BarSnap.toc              # Addon manifest and load order
-├── Constants.lua            # UI constants, textures, colors, categories
-├── Core.lua                 # Main namespace, SavedVariables, slash commands
+├── Constants.lua            # Slot model, dimensions, textures, colors, categories, bar labels & tooltips
+├── Core.lua                 # Main namespace, SavedVariables, slash commands, helpers
 ├── Engine/
-│   ├── Scanner.lua          # Action bar scanning and action parsing
-│   ├── Validator.lua        # Combat guards, action validation
-│   └── Restore.lua          # Preset restoration with retry logic
+│   ├── Scanner.lua          # Bar scanning, sparse action capture, duplicate-name detection, debug dump
+│   ├── Validator.lua        # Combat guard, name validation, unique-name suffixing
+│   └── Restore.lua          # Preset apply, macro/mount/flyout lookup caches, retry logic, special-bar detection
 ├── UI/
+│   ├── WindowFactory.lua    # Floating/docked window builder shared by every frame
 │   ├── PresetRow.lua        # Individual preset list row component
-│   ├── EditorFrame.lua      # Preset editor frame (icon, name, filters, delete)
+│   ├── EditorFrame.lua      # Preset editor (icon, name, category & per-bar filters, confirmation popups)
 │   ├── MainFrame.lua        # Main window and preset list display
 │   └── Settings.lua         # Blizzard addon settings panel
 ├── Assets/                  # Custom addon icon
-└── build.sh                 # CurseForge build script
+├── build.sh                 # CurseForge build script (versioned zip)
+└── deploy.sh                # Local dev script: builds and copies the zip into the live AddOns folder
 ```
 
 ## How It Works
@@ -126,16 +134,16 @@ When you click "Save Current Bars", the addon scans all action bars and records:
 
 Empty slots are not recorded (sparse storage).
 
-### Restoration with Validation
+### Restoration
 
 When you apply a preset, the addon:
-1. Checks per-bar filters — disabled bars are skipped entirely
-2. Validates each action still exists (spell learned, item in bags, macro exists, mount known, toy owned, equipment set exists, battle pet known)
-3. Picks up the action from the appropriate UI system
-4. Places it into the target slot with retry logic (up to 5 attempts over 0.5 seconds)
-5. Respects category filters — skipped actions don't fill the slot
-6. Respects preserve layout option — unlisted slots stay unchanged
-7. Reports the result (X placed, Y skipped, Z unavailable)
+1. Checks per-bar filters — disabled bars are skipped entirely (slots left as-is)
+2. Checks per-category filters — filtered-out types are skipped
+3. Picks up the action through the appropriate WoW API (spell, item, macro, mount, toy, flyout, equipment set, or battle pet)
+4. Places it into the target slot, retrying up to 5 attempts at 100 ms intervals if cursor state fights the place
+5. For macros specifically: looks up by exact name in the saved pool, then by body hash, then in the other pool, then falls back to `PickupMacro(name)` — survives rename and pool migration
+6. Respects the preserve-layout option — unlisted slots stay unchanged when on, get cleared when off
+7. Reports the result in chat (X placed, Y skipped)
 
 ### Combat Safety
 
@@ -149,16 +157,16 @@ WoW's `InCombatLockdown()` API prevents modifying action bars during combat. Bar
 
 ### Actions don't restore / appear as skipped
 
-1. The action requirements aren't met (spell not learned, item not in bags, macro deleted, mount not known, toy not owned, equipment set deleted, battle pet not known)
+1. The action no longer exists or isn't available to you (spell not learned, item not in bags, macro deleted, mount not known, toy not owned, equipment set deleted, battle pet not known)
 2. The action category is disabled in the editor filters
-3. The bar filter for that bar is disabled
+3. The bar filter for that bar is disabled — common gotcha: your visual "Action Bar 6/7/8" maps to BarSnap's Bars 13/14/15, and the form-bar pages (Druid/Rogue/Warrior/Evoker) map to BarSnap bars 7-12. Hover the editor checkboxes for the slot-range hint.
 4. You enabled "Keep unlisted slots" and the preset doesn't include those slots
 
-To debug: Edit the preset and check which categories are enabled.
+To debug: run `/bs debug` to see exactly which BarSnap bars contain your actions, then enable those bars in the editor.
 
 ### Macro doesn't show after restore
 
-Macros are identified by name. If the macro no longer exists in your macro list, it cannot be restored. Recreate the macro and save a new preset.
+Macros are identified by name first, then by body hash (so renamed macros still restore if the body matches), then across the other pool (account ↔ character). If none of those match, BarSnap falls back to `PickupMacro(<name>)` and lets WoW resolve. If the macro is genuinely gone — deleted with no body match anywhere — the slot is reported as skipped. Run `/bs debug` after saving to confirm the macro was captured with the expected pool.
 
 ### Items won't place in slots
 
@@ -172,7 +180,7 @@ BarSnap saves presets to two SavedVariables that persist across WoW sessions:
 
 ## Version
 
-**Current Version:** 1.0.0
+**Current Version:** 1.1.0
 **Author:** justLuther
 **License:** MIT
 

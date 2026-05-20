@@ -364,6 +364,10 @@ function NS.CreateEditorFrame(parent)
                 if onClick then onClick(item.key, self:GetChecked()) end
             end)
 
+            if item.tooltipTitle then
+                NS.SetupTooltip(cb, item.tooltipTitle, item.tooltipBody)
+            end
+
             cbs[item.key] = cb
         end
         return cbs, prevLeft
@@ -397,7 +401,14 @@ function NS.CreateEditorFrame(parent)
     -- Bar filter items
     local barItems = {}
     for i = 1, NS.BAR_COUNT do
-        barItems[i] = { key = i, label = NS.BAR_LABELS[i] or ("Bar " .. i) }
+        local label = NS.BAR_LABELS[i] or ("Bar " .. i)
+        local tipBody = NS.BAR_TOOLTIPS and NS.BAR_TOOLTIPS[i]
+        barItems[i] = {
+            key          = i,
+            label        = label,
+            tooltipTitle = tipBody and label or nil,  -- show tooltip only when we have body text
+            tooltipBody  = tipBody,
+        }
     end
 
     -- Bar checkboxes (2-column)

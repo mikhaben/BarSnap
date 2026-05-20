@@ -8,6 +8,71 @@ local AddonName, NS = ...
 local mountCache = nil   -- [mountID] = displayIndex
 local flyoutCache = nil  -- [flyoutID] = spellbookIndex
 
+-- Macro caches: split by pool so FindMacroIndex can honour action.isCharacter
+-- without scanning the wrong pool. Built lazily so FindMacroIndex remains
+-- usable outside an ApplyPreset call (e.g. from /bs debug).
+local macroNameAcct = nil   -- [name] = index  (account pool, indices 1..MAX_ACCOUNT_MACROS)
+local macroNameChar = nil   -- [name] = index  (character pool)
+local macroHashAcct = nil   -- [bodyHash] = index
+local macroHashChar = nil
+
+local function BuildMacroCaches()
+    local accountEnd = MAX_ACCOUNT_MACROS or 120
+    local charEnd    = accountEnd + (MAX_CHARACTER_MACROS or 18)
+    local na, nc, ha, hc = {}, {}, {}, {}
+    for i = 1, charEnd do
+        local name, _, body = GetMacroInfo(i)
+        if name then
+            local isChar = i > accountEnd
+            local nameCache = isChar and nc or na
+            if not nameCache[name] then nameCache[name] = i end
+            if body and body ~= "" then
+                local hash = NS.HashMacroBody(body)
+                if hash then
+                    local hashCache = isChar and hc or ha
+                    if not hashCache[hash] then hashCache[hash] = i end
+                end
+            end
+        end
+    end
+    macroNameAcct, macroNameChar = na, nc
+    macroHashAcct, macroHashChar = ha, hc
+end
+
+----------------------------------------------------------------------
+-- Resolve a macro action to a WoW macro index. Lookup order:
+--   1. Name in the saved pool (most specific — survives same-name dup
+--      across pools because we recorded isCharacter at scan time).
+--   2. Body hash in the saved pool (survives rename).
+--   3. Body hash in the other pool (survives pool migration, e.g. user
+--      moved an account macro into the character pool).
+--   4. nil — caller falls back to PickupMacro(name) at place time.
+-- Legacy presets (isCharacter == nil) search both pools account-first
+-- by name, then by hash, matching pre-1.1 behaviour.
+----------------------------------------------------------------------
+function NS.FindMacroIndex(action)
+    if not action or not action.name then return nil end
+    if not macroNameAcct then BuildMacroCaches() end
+
+    local h = action.bodyHash
+    if action.isCharacter == true then
+        if macroNameChar[action.name] then return macroNameChar[action.name] end
+        if h and macroHashChar[h] then return macroHashChar[h] end
+        if h and macroHashAcct[h] then return macroHashAcct[h] end
+    elseif action.isCharacter == false then
+        if macroNameAcct[action.name] then return macroNameAcct[action.name] end
+        if h and macroHashAcct[h] then return macroHashAcct[h] end
+        if h and macroHashChar[h] then return macroHashChar[h] end
+    else
+        -- Legacy: account-first across both pools
+        if macroNameAcct[action.name] then return macroNameAcct[action.name] end
+        if macroNameChar[action.name] then return macroNameChar[action.name] end
+        if h and macroHashAcct[h] then return macroHashAcct[h] end
+        if h and macroHashChar[h] then return macroHashChar[h] end
+    end
+    return nil
+end
+
 local function BuildMountCache()
     local cache = {}
     if not C_MountJournal then return cache end
@@ -60,8 +125,18 @@ local function PlaceActionImpl(slot, action)
 
     elseif t == "macro" then
         local macroIdx = NS.FindMacroIndex(action)
-        if not macroIdx then return false end
-        PickupMacro(macroIdx)
+        if macroIdx then
+            PickupMacro(macroIdx)
+        elseif action.name then
+            -- Last-resort fallback: hand the name to WoW and let its own
+            -- resolver pick. Fires only after the name+hash chain missed,
+            -- so a mistakenly-pooled or transient-encoding case still
+            -- restores instead of silently failing. WoW may choose the
+            -- "wrong" pool here, but that's strictly better than a blank.
+            PickupMacro(action.name)
+        else
+            return false
+        end
 
     elseif t == "mount" then
         if not id or not C_MountJournal then return false end
@@ -189,20 +264,23 @@ local function SlotAction(preset, slot, bar)
 end
 
 ----------------------------------------------------------------------
--- Returns a list of bar numbers (9-11) that this preset would visibly
--- modify on apply, or nil if none. A bar counts as "modified" when its
--- filter is enabled AND either the preset has actions that would
--- actually be placed (passing category filters) OR preserveLayout is
--- off and the current bar has any actions to clear. No-op clears
--- (empty preset slots + empty current slots) and category-filtered
--- slots do not trigger the warning — false positives train users to
--- click through every popup.
+-- Returns a list of "special" bar numbers (7-12 = form/stance pages
+-- and Dragonriding override) that this preset would visibly modify on
+-- apply, or nil if none. A bar counts as "modified" when its filter is
+-- enabled AND either the preset has actions that would actually be
+-- placed (passing category filters) OR preserveLayout is off and the
+-- current bar has any actions to clear. No-op clears (empty preset
+-- slots + empty current slots) and category-filtered slots do not
+-- trigger the warning — false positives train users to click through
+-- every popup.
+-- Bars 13-15 (Blizzard's MultiBar5/6/7 = visible Action Bar 6/7/8) are
+-- regular user-facing bars, not special — they don't need the popup.
 ----------------------------------------------------------------------
 function NS.GetAffectedSpecialBars(preset)
     if not preset or not preset.barFilters then return nil end
 
     local affected = nil
-    for bar = 9, NS.BAR_COUNT do
+    for bar = 7, 12 do
         if preset.barFilters[bar] ~= false then
             local slotMin = (bar - 1) * NS.SLOTS_PER_BAR + 1
             local slotMax = bar * NS.SLOTS_PER_BAR
@@ -253,6 +331,7 @@ function NS.ApplyPreset(preset)
     -- and spellbook can refilter freely afterwards).
     mountCache = BuildMountCache()
     flyoutCache = BuildFlyoutCache()
+    BuildMacroCaches()
 
     local placed = 0
     local skipped = 0
@@ -264,6 +343,8 @@ function NS.ApplyPreset(preset)
 
         mountCache = nil
         flyoutCache = nil
+        macroNameAcct, macroNameChar = nil, nil
+        macroHashAcct, macroHashChar = nil, nil
 
         if placed == 0 and skipped == 0 then
             NS.Print("Applied '" .. preset.name .. "' (no matching actions)")
