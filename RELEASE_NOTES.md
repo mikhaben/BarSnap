@@ -13,10 +13,6 @@
 
 - **`/bs debug` Hint** — The Blizzard Settings page now lists `/bs debug` alongside `/bs`, so users discover the diagnostic command without reading the README.
 
-### Docs
-
-- `AGENTS.md` and tooltips scrubbed of class-specific name-dropping; the slot model is described generically with a pointer to `/bs debug` for the actual per-character mapping.
-
 ---
 
 ## Version 1.2.0 - Full 15-Bar Coverage & Macro Robustness
