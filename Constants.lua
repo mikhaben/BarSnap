@@ -62,37 +62,50 @@ NS.DEFAULT_BAR_FILTERS = {
     [13] = true,  [14] = true,  [15] = true,
 }
 
--- Bar labels shown next to each editor checkbox. Short hint for the
--- non-obvious bars so users can correlate to their in-game UI without
--- overflowing the 2-column checkbox layout. Full context in BAR_TOOLTIPS.
+-- Bar labels shown next to each editor checkbox. Bars 1 and 13-15 have
+-- stable, class-agnostic identities (Main + the three visible Action
+-- Bar 6/7/8 frames). Bars 7-12 are class-paged "special" bars — exact
+-- form/stance assignment varies by class/spec/version, so we keep the
+-- label generic and put context in BAR_TOOLTIPS.
 NS.BAR_LABELS = {
     [1]  = "Bar 1 (Main)",
-    [7]  = "Bar 7 (Bear)",
-    [8]  = "Bar 8 (Cat)",
-    [9]  = "Bar 9 (Moonkin)",
-    [10] = "Bar 10 (Travel)",
-    [11] = "Bar 11 (Dragon)",
+    [7]  = "Bar 7 (Special)",
+    [8]  = "Bar 8 (Special)",
+    [9]  = "Bar 9 (Special)",
+    [10] = "Bar 10 (Special)",
+    [11] = "Bar 11 (Dragonriding)",
+    [12] = "Bar 12 (Vehicle)",
     [13] = "Bar 13 (UI 6)",
     [14] = "Bar 14 (UI 7)",
     [15] = "Bar 15 (UI 8)",
 }
 
--- Per-bar tooltips shown on hover in the editor. Bars 1, 3-6 (visible
--- Action Bars 1-5) get short geographic hints; bars 7-15 get the
--- form/stance/Edit-Mode context.
+-- Per-bar tooltips shown on hover in the editor. Bars 7-12 share the
+-- same generic "paged special bar" description because the exact
+-- class/form assignment to each page varies and is not worth
+-- promising in the UI — users discover the mapping with /bs debug.
+local SPECIAL_BAR_TOOLTIP =
+    "Slots %d-%d. Special paged bar.\nUsed by some classes for stance/form/override paging — when in the relevant state, your main bar displays these slots. Not visible as a separate bar in the Blizzard UI.\nRun /bs debug to see exactly which BarSnap bar holds the actions you placed."
+
+local function specialTip(bar)
+    local slotMin = (bar - 1) * 12 + 1
+    local slotMax = bar * 12
+    return string.format(SPECIAL_BAR_TOOLTIP, slotMin, slotMax)
+end
+
 NS.BAR_TOOLTIPS = {
     [1]  = "Slots 1-12. Main action bar.",
     [2]  = "Slots 13-24. Page 2 of the main bar — generally unused, only reached by paging.",
-    [3]  = "Slots 25-36. One of the 4 multibars (Action Bar 2-5 in Blizzard's options panel).",
-    [4]  = "Slots 37-48. One of the 4 multibars (Action Bar 2-5 in Blizzard's options panel).",
-    [5]  = "Slots 49-60. One of the 4 multibars (Action Bar 2-5 in Blizzard's options panel).",
-    [6]  = "Slots 61-72. One of the 4 multibars (Action Bar 2-5 in Blizzard's options panel).",
-    [7]  = "Slots 73-84. Druid Bear form / Rogue Stealth / Warrior Battle / Evoker bonus bar.\nPaged onto your main bar when in form — not a separate visible bar in the Blizzard UI.",
-    [8]  = "Slots 85-96. Druid Cat (Prowl) / Warrior Defensive stance.\nPaged onto your main bar when in form.",
-    [9]  = "Slots 97-108. Druid Moonkin form / Warrior Berserker stance.\nPaged onto your main bar when in form.",
-    [10] = "Slots 109-120. Druid Travel form.\nPaged onto your main bar when in form.",
-    [11] = "Slots 121-132. Dragonriding/Skyriding override, vehicle, possess.\nNot directly user-editable — paged dynamically by Blizzard.",
-    [12] = "Slots 133-144. Reserved / unused.",
+    [3]  = "Slots 25-36. One of the 4 standard multibars (Action Bar 2-5 in Blizzard's options panel).",
+    [4]  = "Slots 37-48. One of the 4 standard multibars (Action Bar 2-5 in Blizzard's options panel).",
+    [5]  = "Slots 49-60. One of the 4 standard multibars (Action Bar 2-5 in Blizzard's options panel).",
+    [6]  = "Slots 61-72. One of the 4 standard multibars (Action Bar 2-5 in Blizzard's options panel).",
+    [7]  = specialTip(7),
+    [8]  = specialTip(8),
+    [9]  = specialTip(9),
+    [10] = specialTip(10),
+    [11] = "Slots 121-132. Dragonriding/Skyriding bar.\nVisible and directly editable from the default UI when you mount a flying drake. Toggle on to capture and restore your Dragonriding action layout.",
+    [12] = "Slots 133-144. Vehicle bar.\nSwaps onto your main bar when you mount a vehicle; Blizzard auto-fills the slots with the vehicle's actions, so capturing/restoring is rarely useful.",
     [13] = "Slots 145-156. Blizzard's MultiActionBar5 — visible as Action Bar 6 in the Blizzard Action Bars options.",
     [14] = "Slots 157-168. Blizzard's MultiActionBar6 — visible as Action Bar 7 in the Blizzard Action Bars options.",
     [15] = "Slots 169-180. Blizzard's MultiActionBar7 — visible as Action Bar 8 in the Blizzard Action Bars options.",
@@ -114,7 +127,7 @@ NS.TYPE_MAP = {
 
 -- Layout
 NS.MAIN_WIDTH      = 260
-NS.EDITOR_WIDTH    = 300
+NS.EDITOR_WIDTH    = 330
 NS.ROW_HEIGHT      = 30
 NS.ICON_SIZE       = 22
 NS.BTN_SIZE        = 20

@@ -1,5 +1,24 @@
 # BarSnap Release Notes
 
+## Version 1.2.1 - Editor UI Polish & Honest Bar Labels
+
+### UI
+
+- **Class-Agnostic "Special" Labels** — Bars 7-10 now show `Bar N (Special)` instead of class-specific names like "Bear" or "Cat". The actual class↔bar mapping varies by class, spec, and patch, so we no longer promise it in the label. Hover the checkbox for a generic tooltip.
+- **Bar 11 — Dragonriding** — Bar 11 now correctly labels itself "Dragonriding" with a tooltip noting that it IS directly editable in the default Blizzard UI when you mount a flying drake.
+- **Bar 12 — Vehicle** — Bar 12 is the vehicle bar (per Blizzard's default `GetVehicleBarIndex` = 12). Tooltip now explains Blizzard auto-manages those slots, so toggling it on is rarely useful — but the checkbox stays enabled for power users.
+- **Wider Editor** — Editor window grew from 300px → 330px so the longer `Bar 11 (Dragonriding)` label no longer collides with the second column's checkbox.
+
+### Settings Panel
+
+- **`/bs debug` Hint** — The Blizzard Settings page now lists `/bs debug` alongside `/bs`, so users discover the diagnostic command without reading the README.
+
+### Docs
+
+- `AGENTS.md` and tooltips scrubbed of class-specific name-dropping; the slot model is described generically with a pointer to `/bs debug` for the actual per-character mapping.
+
+---
+
 ## Version 1.2.0 - Full 15-Bar Coverage & Macro Robustness
 
 ### New Features
