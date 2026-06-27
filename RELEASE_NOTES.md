@@ -1,5 +1,13 @@
 # BarSnap Release Notes
 
+## Version 1.2.2 - WoW 12.0.7 Compatibility
+
+### Compatibility
+
+- **Updated for WoW 12.0.7 (Midnight)** — Bumped the supported interface version to 120007 so the addon loads on the current patch. No functional changes: reviewed the 12.0.1–12.0.7 API changes and BarSnap's action-bar, spell, mount, and toy APIs are unaffected.
+
+---
+
 ## Version 1.2.1 - Editor UI Polish & Honest Bar Labels
 
 ### UI
