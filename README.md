@@ -89,7 +89,7 @@ Click the trash icon to permanently delete a preset (cannot be undone).
 ## Tech Stack
 
 - **Language:** Lua (WoW addon API)
-- **WoW Interface:** 120000 (Midnight)
+- **WoW Interface:** 120007 (Midnight)
 - **UI Framework:** Raw WoW frame API (no AceGUI)
 - **Templates Used:**
   - BasicFrameTemplateWithInset (floating windows)
