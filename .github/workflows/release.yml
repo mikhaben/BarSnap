@@ -8,8 +8,8 @@ name: Package and Release
 # must be triggered by the tag itself — not by pushing main.
 #
 # Release flow:
-#   1. Bump ## Version in BarSnap.toc, add release-notes/<version>.md (this file
-#      becomes the CurseForge/Wago changelog), and add a RELEASE_NOTES.md entry.
+#   1. Bump ## Version in BarSnap.toc and add release-notes/<version>.md
+#      (this file becomes the CurseForge/Wago changelog).
 #   2. Commit to main.
 #   3. Tag and push the tag:
 #        git tag v1.2.3
@@ -74,7 +74,7 @@ jobs:
             echo "Using release-notes/${version}.md as the changelog."
           else
             echo "::warning::release-notes/${version}.md not found — falling back to a minimal changelog."
-            printf '# %s\n\nSee RELEASE_NOTES.md for details.\n' "$version" > CHANGELOG.md
+            printf '# %s\n\nSee the project page for details.\n' "$version" > CHANGELOG.md
           fi
 
       - name: Package and release

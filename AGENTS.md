@@ -117,7 +117,7 @@ CI (`.github/workflows/release.yml`) runs the [BigWigsMods packager](https://git
 Per-version changelog: the description shown on CurseForge/Wago comes from `release-notes/<version>.md`. A workflow step copies that file to `CHANGELOG.md` (gitignored, generated), which `.pkgmeta`'s `manual-changelog` feeds to the packager. Without it the packager dumps every commit message since the last tag.
 
 ```bash
-# Release: bump ## Version in BarSnap.toc, add release-notes/<version>.md + a RELEASE_NOTES.md entry, commit to main, then:
+# Release: bump ## Version in BarSnap.toc, add release-notes/<version>.md, commit to main, then:
 git tag v1.2.3
 git push origin v1.2.3
 ```

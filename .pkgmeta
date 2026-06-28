@@ -15,8 +15,8 @@ manual-changelog:
   filename: CHANGELOG.md
   markup-type: markdown
 
-# Files/folders kept OUT of the uploaded zip (the addon itself, README, and
-# RELEASE_NOTES are kept in). `.git` is removed automatically.
+# Files/folders kept OUT of the uploaded zip (the addon itself and README are
+# kept in). `.git` is removed automatically.
 ignore:
   - .github
   - .pkgmeta

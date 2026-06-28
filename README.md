@@ -192,9 +192,8 @@ when you push a **version tag**.
 
 To cut a release:
 
-1. Bump `## Version` in `BarSnap.toc`, add an entry to `RELEASE_NOTES.md`, and create
-   `release-notes/<version>.md` with just that version's notes — this file becomes the
-   changelog shown on CurseForge/Wago.
+1. Bump `## Version` in `BarSnap.toc` and create `release-notes/<version>.md` with that
+   version's notes — this file becomes the changelog shown on CurseForge/Wago.
 2. Commit to `main`, then tag and push the tag:
    ```bash
    git tag v1.2.3
