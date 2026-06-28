@@ -202,8 +202,9 @@ To cut a stable release:
 
 **One-time setup:** add the `CF_API_KEY` and `WAGO_API_KEY` repository secrets
 (Settings → Secrets and variables → Actions), and add `## X-Curse-Project-ID` and
-`## X-Wago-ID` directives to `BarSnap.toc`. `build.sh` remains available for manual
-local packaging.
+`## X-Wago-ID` directives to `BarSnap.toc`. Both secrets are required — if either is
+missing the workflow skips the upload (with a warning) rather than publishing to only
+one platform. `build.sh` remains available for manual local packaging.
 
 ## Contributing
 

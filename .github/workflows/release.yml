@@ -12,6 +12,9 @@ name: Package and Release
 # The packager marks the upload as a release when HEAD is tagged, alpha otherwise.
 #
 # ── One-time setup before this works ────────────────────────────────────────
+#  Deploy runs ONLY when BOTH API keys are present. If either is missing the job
+#  skips the upload and logs a warning instead of publishing to just one platform.
+#
 #  1. Repo secrets (Settings → Secrets and variables → Actions → New secret):
 #       CF_API_KEY      CurseForge token  (legacy.curseforge.com → My API Tokens)
 #       WAGO_API_KEY    Wago token        (addons.wago.io → account → API tokens)
@@ -19,7 +22,6 @@ name: Package and Release
 #  2. Add the project IDs to BarSnap.toc so uploads have a destination:
 #       ## X-Curse-Project-ID: <id>
 #       ## X-Wago-ID: <id>
-#     Omit a directive to skip that platform (GitHub Release still happens).
 #
 # ── Security ─────────────────────────────────────────────────────────────────
 #  `@v2` tracks the latest v2 release. To pin against a supply-chain compromise,
@@ -37,12 +39,30 @@ jobs:
   package:
     runs-on: ubuntu-latest
     steps:
+      # Gate the deploy: only proceed when BOTH platform keys are set. Secrets
+      # can't be read directly in `if:`, so check them here via the shell and
+      # expose the result as an output the later steps guard on.
+      - name: Check deploy credentials
+        id: creds
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          WAGO_API_KEY: ${{ secrets.WAGO_API_KEY }}
+        run: |
+          if [ -n "$CF_API_KEY" ] && [ -n "$WAGO_API_KEY" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Deploy skipped — both CF_API_KEY and WAGO_API_KEY secrets must be set to publish."
+          fi
+
       - name: Checkout
-        uses: actions/checkout@v4
+        if: steps.creds.outputs.ready == 'true'
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0   # full history + tags for changelog and version detection
 
       - name: Package and release
+        if: steps.creds.outputs.ready == 'true'
         uses: BigWigsMods/packager@v2
         env:
           CF_API_KEY: ${{ secrets.CF_API_KEY }}
