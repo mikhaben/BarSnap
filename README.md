@@ -184,6 +184,27 @@ BarSnap saves presets to two SavedVariables that persist across WoW sessions:
 **Author:** justLuther
 **License:** MIT
 
+## Releasing
+
+Pushes to `main` are built and published automatically by GitHub Actions
+(`.github/workflows/release.yml`) using the [BigWigsMods packager](https://github.com/BigWigsMods/packager).
+Untagged pushes go out as **alpha** builds; a tagged commit becomes a **stable** release.
+
+To cut a stable release:
+
+1. Bump `## Version` in `BarSnap.toc` and add an entry to `RELEASE_NOTES.md`.
+2. Commit, tag the commit, and push `main` with the tag (the tag drives the published version):
+   ```bash
+   git tag v1.2.3
+   git push origin main --follow-tags
+   ```
+3. The workflow packages the addon and uploads it to CurseForge, Wago, and GitHub Releases.
+
+**One-time setup:** add the `CF_API_KEY` and `WAGO_API_TOKEN` repository secrets
+(Settings → Secrets and variables → Actions), and add `## X-Curse-Project-ID` and
+`## X-Wago-ID` directives to `BarSnap.toc`. `build.sh` remains available for manual
+local packaging.
+
 ## Contributing
 
 Found a bug or have a feature request? Open an issue or submit a pull request on the project repository.

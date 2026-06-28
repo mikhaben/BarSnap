@@ -1,0 +1,50 @@
+name: Package and Release
+
+# Builds the addon and uploads it to CurseForge, Wago, and GitHub Releases
+# on every push to `main`.
+#
+# Untagged pushes publish as ALPHA builds (versioned from `git describe`).
+# To publish a STABLE release, tag the commit and push it together with main:
+#
+#     git tag v1.2.3
+#     git push origin main --follow-tags
+#
+# The packager marks the upload as a release when HEAD is tagged, alpha otherwise.
+#
+# ── One-time setup before this works ────────────────────────────────────────
+#  1. Repo secrets (Settings → Secrets and variables → Actions → New secret):
+#       CF_API_KEY      CurseForge token  (legacy.curseforge.com → My API Tokens)
+#       WAGO_API_TOKEN  Wago token        (addons.wago.io → account → API tokens)
+#     GITHUB_TOKEN is provided automatically — do not create it.
+#  2. Add the project IDs to BarSnap.toc so uploads have a destination:
+#       ## X-Curse-Project-ID: <id>
+#       ## X-Wago-ID: <id>
+#     Omit a directive to skip that platform (GitHub Release still happens).
+#
+# ── Security ─────────────────────────────────────────────────────────────────
+#  `@v2` tracks the latest v2 release. To pin against a supply-chain compromise,
+#  replace it with a full commit SHA: BigWigsMods/packager@<40-char-sha>.
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write   # required to create the GitHub Release
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history + tags for changelog and version detection
+
+      - name: Package and release
+        uses: BigWigsMods/packager@v2
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}

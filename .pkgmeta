@@ -1,0 +1,25 @@
+# BigWigsMods/packager configuration — https://github.com/BigWigsMods/packager
+# Controls what goes into the distributed zip. BarSnap embeds no external
+# libraries, so there are no `externals` to fetch — this just names the addon
+# and strips dev/tooling files from the package.
+
+package-as: BarSnap
+
+# No embedded libs → no "nolib" variant needed.
+enable-nolib-creation: no
+
+# Files/folders kept OUT of the uploaded zip (the addon itself, README, and
+# RELEASE_NOTES are kept in). `.git` is removed automatically.
+ignore:
+  - .github
+  - .pkgmeta
+  - .gitignore
+  - .claude
+  - AGENTS.md
+  - CLAUDE.md
+  - MARKETING.md
+  - build
+  - build.sh
+  - deploy.sh
+  - docs
+  - .DS_Store

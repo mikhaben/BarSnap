@@ -109,3 +109,19 @@ All modules access presets through `NS.GetActivePresets()` which returns the cor
 ```
 
 Retail only — interface version, addon version, and SavedVariables names live in `BarSnap.toc`.
+
+## Releasing
+
+CI (`.github/workflows/release.yml`) runs the [BigWigsMods packager](https://github.com/BigWigsMods/packager) on every push to `main` and uploads to CurseForge, Wago, and GitHub Releases. Untagged pushes are alpha builds; a tagged HEAD produces a stable release. `.pkgmeta` controls the zip contents — BarSnap embeds no libs, so there are no externals; dev/tooling files are stripped via its `ignore` list.
+
+```bash
+# Stable release: bump ## Version in BarSnap.toc + add a RELEASE_NOTES.md entry, commit, then:
+git tag v1.2.3
+git push origin main --follow-tags   # the tag drives the published version
+```
+
+Requirements (one-time):
+- Repo secrets: `CF_API_KEY` (CurseForge), `WAGO_API_TOKEN` (Wago). `GITHUB_TOKEN` is provided automatically and passed to the packager as `GITHUB_OAUTH`.
+- TOC directives `## X-Curse-Project-ID` and `## X-Wago-ID` — the packager reads upload destinations from these. Omit one to skip that platform.
+
+`build.sh` / `deploy.sh` remain the manual path for local zips and in-game testing.

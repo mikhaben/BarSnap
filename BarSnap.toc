@@ -6,6 +6,8 @@
 ## IconTexture: Interface\AddOns\BarSnap\Assets\logo
 ## SavedVariables: BarSnapDB
 ## SavedVariablesPerCharacter: BarSnapCharDB
+## X-Curse-Project-ID: 1474923
+## X-Wago-ID: b6XeAOKp
 
 # Core
 Constants.lua
