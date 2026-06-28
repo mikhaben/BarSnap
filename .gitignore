@@ -1,6 +1,9 @@
 # Build output
 build/
 
+# Generated at CI from release-notes/<version>.md (packager manual-changelog)
+CHANGELOG.md
+
 # macOS
 .DS_Store
 

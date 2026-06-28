@@ -112,17 +112,19 @@ Retail only — interface version, addon version, and SavedVariables names live 
 
 ## Releasing
 
-CI (`.github/workflows/release.yml`) runs the [BigWigsMods packager](https://github.com/BigWigsMods/packager) on every push to `main` and uploads to CurseForge, Wago, and GitHub Releases. Untagged pushes are alpha builds; a tagged HEAD produces a stable release. `.pkgmeta` controls the zip contents — BarSnap embeds no libs, so there are no externals; dev/tooling files are stripped via its `ignore` list.
+CI (`.github/workflows/release.yml`) runs the [BigWigsMods packager](https://github.com/BigWigsMods/packager) **on pushed version tags** (`v*`) and uploads to CurseForge, Wago, and GitHub Releases. Tag-driven because the packager refuses to package a tag reached via a branch push (`Found future tag, not packaging`). `.pkgmeta` controls the zip contents — BarSnap embeds no libs, so there are no externals; dev/tooling files are stripped via its `ignore` list.
+
+Per-version changelog: the description shown on CurseForge/Wago comes from `release-notes/<version>.md`. A workflow step copies that file to `CHANGELOG.md` (gitignored, generated), which `.pkgmeta`'s `manual-changelog` feeds to the packager. Without it the packager dumps every commit message since the last tag.
 
 ```bash
-# Stable release: bump ## Version in BarSnap.toc + add a RELEASE_NOTES.md entry, commit, then:
+# Release: bump ## Version in BarSnap.toc, add release-notes/<version>.md + a RELEASE_NOTES.md entry, commit to main, then:
 git tag v1.2.3
-git push origin main --follow-tags   # the tag drives the published version
+git push origin v1.2.3
 ```
 
 Requirements (one-time):
-- Repo secrets: `CF_API_KEY` (CurseForge), `WAGO_API_KEY` (Wago). `GITHUB_TOKEN` is provided automatically. The workflow maps these to the env vars the packager expects (`WAGO_API_KEY` → `WAGO_API_TOKEN`, `GITHUB_TOKEN` → `GITHUB_OAUTH`).
-- TOC directives `## X-Curse-Project-ID` and `## X-Wago-ID` — the packager reads upload destinations from these.
-- Deploy is gated on **both** API keys: a `Check deploy credentials` step skips the checkout + package steps (logging a warning, job stays green) unless `CF_API_KEY` and `WAGO_API_KEY` are both set — so it never publishes to just one platform.
+- Repo secrets: `CF_API_KEY` (CurseForge), `WAGO_API_KEY` (Wago). `GITHUB_TOKEN` is automatic. The workflow maps these to the env vars the packager expects (`WAGO_API_KEY` → `WAGO_API_TOKEN`, `GITHUB_TOKEN` → `GITHUB_OAUTH`).
+- TOC directives `## X-Curse-Project-ID` and `## X-Wago-ID` — upload destinations.
+- Deploy is gated on **both** API keys: a `Check deploy credentials` step skips the build/upload (warning, job stays green) unless both are set — so it never publishes to just one platform.
 
 `build.sh` / `deploy.sh` remain the manual path for local zips and in-game testing.

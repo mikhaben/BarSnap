@@ -1,27 +1,29 @@
 name: Package and Release
 
 # Builds the addon and uploads it to CurseForge, Wago, and GitHub Releases
-# on every push to `main`.
+# when you push a version tag (e.g. v1.2.3).
 #
-# Untagged pushes publish as ALPHA builds (versioned from `git describe`).
-# To publish a STABLE release, tag the commit and push it together with main:
+# Tag-driven on purpose: the BigWigsMods packager refuses to package a tag it
+# reaches via a branch push ("Found future tag, not packaging"), so releases
+# must be triggered by the tag itself — not by pushing main.
 #
-#     git tag v1.2.3
-#     git push origin main --follow-tags
+# Release flow:
+#   1. Bump ## Version in BarSnap.toc, add release-notes/<version>.md (this file
+#      becomes the CurseForge/Wago changelog), and add a RELEASE_NOTES.md entry.
+#   2. Commit to main.
+#   3. Tag and push the tag:
+#        git tag v1.2.3
+#        git push origin v1.2.3
 #
-# The packager marks the upload as a release when HEAD is tagged, alpha otherwise.
+# ── One-time setup ───────────────────────────────────────────────────────────
+#  Deploy runs ONLY when BOTH API keys are present; otherwise the job skips the
+#  upload and logs a warning instead of publishing to just one platform.
 #
-# ── One-time setup before this works ────────────────────────────────────────
-#  Deploy runs ONLY when BOTH API keys are present. If either is missing the job
-#  skips the upload and logs a warning instead of publishing to just one platform.
-#
-#  1. Repo secrets (Settings → Secrets and variables → Actions → New secret):
+#  Repo secrets (Settings → Secrets and variables → Actions → New secret):
 #       CF_API_KEY      CurseForge token  (legacy.curseforge.com → My API Tokens)
 #       WAGO_API_KEY    Wago token        (addons.wago.io → account → API tokens)
 #     GITHUB_TOKEN is provided automatically — do not create it.
-#  2. Add the project IDs to BarSnap.toc so uploads have a destination:
-#       ## X-Curse-Project-ID: <id>
-#       ## X-Wago-ID: <id>
+#  Project IDs already live in BarSnap.toc (## X-Curse-Project-ID / ## X-Wago-ID).
 #
 # ── Security ─────────────────────────────────────────────────────────────────
 #  `@v2` tracks the latest v2 release. To pin against a supply-chain compromise,
@@ -29,8 +31,8 @@ name: Package and Release
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'
 
 permissions:
   contents: write   # required to create the GitHub Release
@@ -59,7 +61,21 @@ jobs:
         if: steps.creds.outputs.ready == 'true'
         uses: actions/checkout@v5
         with:
-          fetch-depth: 0   # full history + tags for changelog and version detection
+          fetch-depth: 0   # full history + tags for version detection
+
+      # Use the curated notes for this version as the changelog the packager
+      # uploads, instead of letting it dump every commit message since the last tag.
+      - name: Assemble per-version changelog
+        if: steps.creds.outputs.ready == 'true'
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [ -f "release-notes/${version}.md" ]; then
+            cp "release-notes/${version}.md" CHANGELOG.md
+            echo "Using release-notes/${version}.md as the changelog."
+          else
+            echo "::warning::release-notes/${version}.md not found — falling back to a minimal changelog."
+            printf '# %s\n\nSee RELEASE_NOTES.md for details.\n' "$version" > CHANGELOG.md
+          fi
 
       - name: Package and release
         if: steps.creds.outputs.ready == 'true'

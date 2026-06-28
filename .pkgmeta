@@ -1,12 +1,19 @@
 # BigWigsMods/packager configuration — https://github.com/BigWigsMods/packager
 # Controls what goes into the distributed zip. BarSnap embeds no external
-# libraries, so there are no `externals` to fetch — this just names the addon
-# and strips dev/tooling files from the package.
+# libraries, so there are no `externals` to fetch — this just names the addon,
+# sets the per-version changelog, and strips dev/tooling files from the package.
 
 package-as: BarSnap
 
 # No embedded libs → no "nolib" variant needed.
 enable-nolib-creation: no
+
+# Per-version changelog shown on CurseForge/Wago. The workflow copies
+# release-notes/<version>.md to CHANGELOG.md before packaging; without this the
+# packager would auto-generate one from every commit since the previous tag.
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
 
 # Files/folders kept OUT of the uploaded zip (the addon itself, README, and
 # RELEASE_NOTES are kept in). `.git` is removed automatically.
@@ -22,4 +29,6 @@ ignore:
   - build.sh
   - deploy.sh
   - docs
+  - release-notes
+  - CHANGELOG.md
   - .DS_Store
