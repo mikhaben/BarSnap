@@ -26,6 +26,10 @@ BarSnap/
 │   └── Settings.lua       # Blizzard addon settings panel
 ├── Assets/
 │   └── logo.tga           # Addon icon
+├── release-notes/         # Per-version changelog (release-notes/<version>.md → CurseForge/Wago description)
+├── .pkgmeta               # BigWigsMods packager config (package name, manual-changelog, ignore list)
+├── .github/workflows/
+│   └── release.yml        # CI: on tag push, package + upload to CurseForge, Wago, GitHub Releases
 ├── build.sh               # CurseForge build script (versioned zip)
 └── deploy.sh              # Local dev deploy: builds and copies the zip into the live WoW AddOns folder
 ```

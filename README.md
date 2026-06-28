@@ -114,6 +114,10 @@ BarSnap/
 │   ├── MainFrame.lua        # Main window and preset list display
 │   └── Settings.lua         # Blizzard addon settings panel
 ├── Assets/                  # Custom addon icon
+├── release-notes/           # Per-version release notes (one file per version)
+├── .pkgmeta                 # Packager config for the release workflow
+├── .github/workflows/
+│   └── release.yml          # CI: tag push → package + upload to CurseForge, Wago, GitHub
 ├── build.sh                 # CurseForge build script (versioned zip)
 └── deploy.sh                # Local dev script: builds and copies the zip into the live AddOns folder
 ```
@@ -180,7 +184,7 @@ BarSnap saves presets to two SavedVariables that persist across WoW sessions:
 
 ## Version
 
-**Current Version:** 1.1.0
+**Current Version:** 1.2.2
 **Author:** justLuther
 **License:** MIT
 
