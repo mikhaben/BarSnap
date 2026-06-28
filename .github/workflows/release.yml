@@ -14,7 +14,7 @@ name: Package and Release
 # ── One-time setup before this works ────────────────────────────────────────
 #  1. Repo secrets (Settings → Secrets and variables → Actions → New secret):
 #       CF_API_KEY      CurseForge token  (legacy.curseforge.com → My API Tokens)
-#       WAGO_API_TOKEN  Wago token        (addons.wago.io → account → API tokens)
+#       WAGO_API_KEY    Wago token        (addons.wago.io → account → API tokens)
 #     GITHUB_TOKEN is provided automatically — do not create it.
 #  2. Add the project IDs to BarSnap.toc so uploads have a destination:
 #       ## X-Curse-Project-ID: <id>
@@ -46,5 +46,5 @@ jobs:
         uses: BigWigsMods/packager@v2
         env:
           CF_API_KEY: ${{ secrets.CF_API_KEY }}
-          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+          WAGO_API_TOKEN: ${{ secrets.WAGO_API_KEY }}   # env var must stay WAGO_API_TOKEN (packager requirement); secret is WAGO_API_KEY for consistency
           GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}

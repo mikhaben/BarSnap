@@ -200,7 +200,7 @@ To cut a stable release:
    ```
 3. The workflow packages the addon and uploads it to CurseForge, Wago, and GitHub Releases.
 
-**One-time setup:** add the `CF_API_KEY` and `WAGO_API_TOKEN` repository secrets
+**One-time setup:** add the `CF_API_KEY` and `WAGO_API_KEY` repository secrets
 (Settings → Secrets and variables → Actions), and add `## X-Curse-Project-ID` and
 `## X-Wago-ID` directives to `BarSnap.toc`. `build.sh` remains available for manual
 local packaging.

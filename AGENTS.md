@@ -121,7 +121,7 @@ git push origin main --follow-tags   # the tag drives the published version
 ```
 
 Requirements (one-time):
-- Repo secrets: `CF_API_KEY` (CurseForge), `WAGO_API_TOKEN` (Wago). `GITHUB_TOKEN` is provided automatically and passed to the packager as `GITHUB_OAUTH`.
+- Repo secrets: `CF_API_KEY` (CurseForge), `WAGO_API_KEY` (Wago). `GITHUB_TOKEN` is provided automatically. The workflow maps these to the env vars the packager expects (`WAGO_API_KEY` → `WAGO_API_TOKEN`, `GITHUB_TOKEN` → `GITHUB_OAUTH`).
 - TOC directives `## X-Curse-Project-ID` and `## X-Wago-ID` — the packager reads upload destinations from these. Omit one to skip that platform.
 
 `build.sh` / `deploy.sh` remain the manual path for local zips and in-game testing.
