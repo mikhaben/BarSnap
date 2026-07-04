@@ -5,7 +5,16 @@
 
 set -e
 
-ADDONS_DIR="/Volumes/Main-500GB-SamsT7/Games/World of Warcraft/_retail_/Interface/AddOns"
+# Load local deploy config (WOW_ADDONS_DIR) — copy .env.example to .env
+if [ -f .env ]; then
+    set -a; . ./.env; set +a
+fi
+
+if [ -z "$WOW_ADDONS_DIR" ]; then
+    echo "Error: WOW_ADDONS_DIR not set. Copy .env.example to .env and set your AddOns path."
+    exit 1
+fi
+ADDONS_DIR="$WOW_ADDONS_DIR"
 BUILD_DIR="build"
 TOC_FILE=$(ls *.toc | head -1)
 ADDON_NAME=$(grep "## Title:" "$TOC_FILE" | sed 's/.*Title: *//' | tr -d '\r\n\t')

@@ -21,13 +21,15 @@ ignore:
   - .github
   - .pkgmeta
   - .gitignore
+  - .env
+  - .env.example
   - .claude
   - AGENTS.md
   - CLAUDE.md
   - MARKETING.md
   - build
   - build.sh
-  - deploy.sh
+  - deploy-local.sh
   - docs
   - release-notes
   - CHANGELOG.md

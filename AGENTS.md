@@ -31,7 +31,8 @@ BarSnap/
 ├── .github/workflows/
 │   └── release.yml        # CI: on tag push, package + upload to CurseForge, Wago, GitHub Releases
 ├── build.sh               # CurseForge build script (versioned zip)
-└── deploy.sh              # Local dev deploy: builds and copies the zip into the live WoW AddOns folder
+├── deploy-local.sh        # Local dev: build + install into your WoW AddOns folder (path from .env)
+└── .env.example           # Template for .env (gitignored); set WOW_ADDONS_DIR to your AddOns path
 ```
 
 **Load order:** Constants → Core → Engine (Scanner, Validator, Restore) → UI (WindowFactory, PresetRow, EditorFrame, MainFrame, Settings). Constants must load first so shared values are available everywhere; `WindowFactory` must load before any UI frame that calls `NS.CreateWindow`.
@@ -109,7 +110,7 @@ All modules access presets through `NS.GetActivePresets()` which returns the cor
 
 ```bash
 ./build.sh   # zips the addon into build/BarSnap_<version>_<date>.zip for CurseForge upload (reads version from TOC)
-./deploy.sh  # builds and copies the zip into the local WoW _retail_/Interface/AddOns folder (path is hard-coded — edit the script for your machine)
+./deploy-local.sh  # builds and installs into your local WoW _retail_/Interface/AddOns folder (reads WOW_ADDONS_DIR from .env — copy .env.example to .env)
 ```
 
 Retail only — interface version, addon version, and SavedVariables names live in `BarSnap.toc`.
@@ -131,4 +132,4 @@ Requirements (one-time):
 - TOC directives `## X-Curse-Project-ID` and `## X-Wago-ID` — upload destinations.
 - Deploy is gated on **both** API keys: a `Check deploy credentials` step skips the build/upload (warning, job stays green) unless both are set — so it never publishes to just one platform.
 
-`build.sh` / `deploy.sh` remain the manual path for local zips and in-game testing.
+`build.sh` / `deploy-local.sh` remain the manual path for local zips and in-game testing.

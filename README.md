@@ -119,7 +119,8 @@ BarSnap/
 ├── .github/workflows/
 │   └── release.yml          # CI: tag push → package + upload to CurseForge, Wago, GitHub
 ├── build.sh                 # CurseForge build script (versioned zip)
-└── deploy.sh                # Local dev script: builds and copies the zip into the live AddOns folder
+├── deploy-local.sh          # Local dev: build + install into your WoW AddOns folder (path from .env)
+└── .env.example             # Template for .env (gitignored); set WOW_ADDONS_DIR to your AddOns path
 ```
 
 ## How It Works
