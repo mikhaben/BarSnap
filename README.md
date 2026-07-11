@@ -3,7 +3,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![CurseForge](https://img.shields.io/badge/CurseForge-Download-F16436?logo=curseforge&logoColor=white)](https://www.curseforge.com/wow/addons/barsnap)
 [![Wago](https://img.shields.io/badge/Wago-Download-A34FE0)](https://addons.wago.io/addons/barsnap-action-bar-preset-save)
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-FFDD00?logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/justluther)
 
 A World of Warcraft addon that saves and restores action bar presets — switch between farming, fighting, fishing bars instantly.
 
