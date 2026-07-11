@@ -19,6 +19,7 @@ Save and restore action bar presets with one click. Snapshot all your action bar
 ## Full Description
 
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/justluther)
+[![GitHub](https://img.shields.io/badge/GitHub-Source_Code-181717?style=for-the-badge&logo=github)](https://github.com/mikhaben/BarSnap)
 
 ### What is BarSnap?
 

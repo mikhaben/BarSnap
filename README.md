@@ -203,7 +203,8 @@ To cut a release:
 
 1. Bump `## Version` in `BarSnap.toc` and create `release-notes/<version>.md` with that
    version's notes — this file becomes the changelog shown on CurseForge/Wago.
-2. Commit to `main`, then tag and push the tag:
+2. Land the bump on `main` via pull request (direct pushes to `main` are blocked),
+   then tag and push the tag — only tags on `main` are published:
    ```bash
    git tag v1.2.3
    git push origin v1.2.3
