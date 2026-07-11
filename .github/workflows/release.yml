@@ -7,6 +7,10 @@ name: Package and Release
 # reaches via a branch push ("Found future tag, not packaging"), so releases
 # must be triggered by the tag itself — not by pushing main.
 #
+# Only tags pointing to commits on main are published: a tag push event has no
+# branch context, so the "Verify tag is on main" step enforces this and fails
+# the run for tags cut from any other branch.
+#
 # Release flow:
 #   1. Bump ## Version in BarSnap.toc and add release-notes/<version>.md
 #      (this file becomes the CurseForge/Wago changelog).
@@ -26,8 +30,10 @@ name: Package and Release
 #  Project IDs already live in BarSnap.toc (## X-Curse-Project-ID / ## X-Wago-ID).
 #
 # ── Security ─────────────────────────────────────────────────────────────────
-#  `@v2` tracks the latest v2 release. To pin against a supply-chain compromise,
-#  replace it with a full commit SHA: BigWigsMods/packager@<40-char-sha>.
+#  The checkout and packager actions are pinned to full commit SHAs (not the
+#  floating @v5/@v2 tags) so a compromised upstream release can't exfiltrate
+#  the API keys. To update, pick a new SHA from the action's releases page and
+#  bump it below.
 
 on:
   push:
@@ -59,9 +65,19 @@ jobs:
 
       - name: Checkout
         if: steps.creds.outputs.ready == 'true'
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           fetch-depth: 0   # full history + tags for version detection
+
+      - name: Verify tag is on main
+        if: steps.creds.outputs.ready == 'true'
+        run: |
+          if git merge-base --is-ancestor HEAD origin/main; then
+            echo "Tag ${GITHUB_REF_NAME} points to a commit on main — proceeding."
+          else
+            echo "::error::Tag ${GITHUB_REF_NAME} is not on main — refusing to publish."
+            exit 1
+          fi
 
       # Use the curated notes for this version as the changelog the packager
       # uploads, instead of letting it dump every commit message since the last tag.
@@ -79,7 +95,7 @@ jobs:
 
       - name: Package and release
         if: steps.creds.outputs.ready == 'true'
-        uses: BigWigsMods/packager@v2
+        uses: BigWigsMods/packager@6d50adb6e8517eefef63f4afb16a6518166a6b28 # v2
         env:
           CF_API_KEY: ${{ secrets.CF_API_KEY }}
           WAGO_API_TOKEN: ${{ secrets.WAGO_API_KEY }}   # env var must stay WAGO_API_TOKEN (packager requirement); secret is WAGO_API_KEY for consistency

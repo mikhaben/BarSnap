@@ -1,5 +1,7 @@
 # BarSnap
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A World of Warcraft addon that saves and restores action bar presets — switch between farming, fighting, fishing bars instantly.
 
 ## Features
@@ -118,6 +120,8 @@ BarSnap/
 ├── .pkgmeta                 # Packager config for the release workflow
 ├── .github/workflows/
 │   └── release.yml          # CI: tag push → package + upload to CurseForge, Wago, GitHub
+├── LICENSE                  # MIT
+├── CONTRIBUTING.md          # How to build, test, and submit PRs
 ├── build.sh                 # CurseForge build script (versioned zip)
 ├── deploy-local.sh          # Local dev: build + install into your WoW AddOns folder (path from .env)
 └── .env.example             # Template for .env (gitignored); set WOW_ADDONS_DIR to your AddOns path
@@ -187,7 +191,7 @@ BarSnap saves presets to two SavedVariables that persist across WoW sessions:
 
 **Current Version:** 1.2.2
 **Author:** justLuther
-**License:** MIT
+**License:** [MIT](LICENSE)
 
 ## Releasing
 
@@ -214,8 +218,8 @@ platform. Project IDs already live in `BarSnap.toc` (`## X-Curse-Project-ID`,
 
 ## Contributing
 
-Found a bug or have a feature request? Open an issue or submit a pull request on the project repository.
+Found a bug or have a feature request? Open an issue or submit a pull request — see [CONTRIBUTING.md](CONTRIBUTING.md) for how to build, test, and what to expect in review.
 
 ## License
 
-BarSnap is provided as-is. Feel free to modify and redistribute under the MIT license.
+BarSnap is provided as-is. Feel free to modify and redistribute under the [MIT license](LICENSE).

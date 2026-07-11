@@ -37,7 +37,7 @@ BarSnap lets you save your entire action bar layout as a named preset and restor
 - **Retry Logic** - Automatic retry on failed placements handles timing issues with other addons gracefully
 - **Combat Safe** - All bar modifications are blocked during combat to prevent protected action errors
 - **Unlimited Presets** - Save as many presets as you need, no arbitrary limits
-- **Draggable Window** - Position the window anywhere on screen, and it remembers where you left it
+- **Draggable Window** - Move the floating window anywhere on screen while it's open
 - **Lightweight** - No AceGUI, no heavy libraries. Raw WoW frames, minimal memory footprint
 
 ### How It Works

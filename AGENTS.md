@@ -28,8 +28,13 @@ BarSnap/
 │   └── logo.tga           # Addon icon
 ├── release-notes/         # Per-version changelog (release-notes/<version>.md → CurseForge/Wago description)
 ├── .pkgmeta               # BigWigsMods packager config (package name, manual-changelog, ignore list)
-├── .github/workflows/
-│   └── release.yml        # CI: on tag push, package + upload to CurseForge, Wago, GitHub Releases
+├── .github/
+│   ├── workflows/
+│   │   └── release.yml    # CI: on tag push, package + upload to CurseForge, Wago, GitHub Releases
+│   ├── ISSUE_TEMPLATE/    # Bug report + feature request templates
+│   └── PULL_REQUEST_TEMPLATE.md
+├── LICENSE                # MIT, copyright justLuther (ships in the release zip)
+├── CONTRIBUTING.md        # Build/test/style guide for contributors (excluded from zip)
 ├── build.sh               # CurseForge build script (versioned zip)
 ├── deploy-local.sh        # Local dev: build + install into your WoW AddOns folder (path from .env)
 └── .env.example           # Template for .env (gitignored); set WOW_ADDONS_DIR to your AddOns path
