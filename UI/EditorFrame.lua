@@ -13,9 +13,9 @@ local function GetActionIcon(action)
     local id = action.id
 
     if t == "spell" and id then
-        return C_Spell and C_Spell.GetSpellTexture(id) or GetSpellTexture(id)
+        return C_Spell.GetSpellTexture(id)
     elseif t == "item" and id then
-        return C_Item and C_Item.GetItemIconByID(id) or GetItemIcon(id)
+        return C_Item.GetItemIconByID(id)
     elseif t == "macro" and action.name then
         local _, icon = GetMacroInfo(action.name)
         return icon

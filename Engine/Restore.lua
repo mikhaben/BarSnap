@@ -121,7 +121,7 @@ local function PlaceActionImpl(slot, action)
 
     elseif t == "item" then
         if not id then return false end
-        PickupItem(id)
+        C_Item.PickupItem(id)
 
     elseif t == "macro" then
         local macroIdx = NS.FindMacroIndex(action)
