@@ -3,7 +3,7 @@
     UI/Settings.lua - Blizzard addon settings panel
 ]]--
 
-local AddonName, NS = ...
+local _, NS = ...
 
 local PADDING_LEFT = 16
 local PADDING_TOP = -16

@@ -1,4 +1,4 @@
-local AddonName, NS = ...
+local _, NS = ...
 
 local editorFrame = nil
 local currentIndex = nil
@@ -336,12 +336,12 @@ function NS.CreateEditorFrame(parent)
     -- 2-column checkbox helper
     local colWidth = (NS.EDITOR_WIDTH - NS.PADDING * 2) / 2
 
-    local function CreateTwoColCheckboxes(parent, items, anchorBelow, onClick)
+    local function CreateTwoColCheckboxes(container, items, anchorBelow, onClick)
         local cbs = {}
         local prevLeft = nil
         for i, item in ipairs(items) do
             local col = (i - 1) % 2  -- 0=left, 1=right
-            local cb = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
+            local cb = CreateFrame("CheckButton", nil, container, "UICheckButtonTemplate")
             cb:SetSize(24, 24)
 
             if col == 0 then

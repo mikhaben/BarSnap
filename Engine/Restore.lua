@@ -1,4 +1,4 @@
-local AddonName, NS = ...
+local _, NS = ...
 
 ----------------------------------------------------------------------
 -- Per-apply lookup caches. Built once at the start of ApplyPreset
@@ -254,8 +254,10 @@ end
 -- a legacy preset whose barFilters[9-11] default to false will leave
 -- form/dragonriding bars untouched even when preserveLayout is off.
 ----------------------------------------------------------------------
+local LEAVE_SLOT_UNTOUCHED = "skip"
+
 local function SlotAction(preset, slot, bar)
-    if preset.barFilters and preset.barFilters[bar] == false then return "skip" end
+    if preset.barFilters and preset.barFilters[bar] == false then return LEAVE_SLOT_UNTOUCHED end
     local action = preset.actions[slot]
     if not action then return nil end
     local fk = NS.TYPE_MAP[action.type]
@@ -359,17 +361,15 @@ function NS.ApplyPreset(preset)
         local bar = math.ceil(slot / NS.SLOTS_PER_BAR)
         local outcome = SlotAction(preset, slot, bar)
 
-        if outcome == "skip" then
-            -- Bar disabled — leave the slot exactly as it is
-        elseif outcome then
+        if outcome == nil then
+            if not preset.preserveLayout then ClearSlot(slot) end
+        elseif outcome ~= LEAVE_SLOT_UNTOUCHED then
             pending = pending + 1
             PlaceWithRetry(slot, outcome, 1, function(success)
                 if success then placed = placed + 1
                 else skipped = skipped + 1 end
                 onComplete()
             end)
-        elseif not preset.preserveLayout then
-            ClearSlot(slot)
         end
     end
 
