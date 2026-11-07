@@ -93,41 +93,11 @@ Click the trash icon to permanently delete a preset (cannot be undone).
 ## Tech Stack
 
 - **Language:** Lua (WoW addon API)
-- **WoW Interface:** 120105 (Midnight)
 - **UI Framework:** Raw WoW frame API (no AceGUI)
 - **Templates Used:**
   - BasicFrameTemplateWithInset (floating windows)
   - WowScrollBoxList + MinimalScrollBar (scrollable preset list)
   - UIPanelButtonTemplate (action buttons)
-
-## Project Structure
-
-```
-BarSnap/
-├── BarSnap.toc              # Addon manifest and load order
-├── Constants.lua            # Slot model, dimensions, textures, colors, categories, bar labels & tooltips
-├── Core.lua                 # Main namespace, SavedVariables, slash commands, helpers
-├── Engine/
-│   ├── Scanner.lua          # Bar scanning, sparse action capture, duplicate-name detection, debug dump
-│   ├── Validator.lua        # Combat guard, name validation, unique-name suffixing
-│   └── Restore.lua          # Preset apply, macro/mount/flyout lookup caches, retry logic, special-bar detection
-├── UI/
-│   ├── WindowFactory.lua    # Floating/docked window builder shared by every frame
-│   ├── PresetRow.lua        # Individual preset list row component
-│   ├── EditorFrame.lua      # Preset editor (icon, name, category & per-bar filters, confirmation popups)
-│   ├── MainFrame.lua        # Main window and preset list display
-│   └── Settings.lua         # Blizzard addon settings panel
-├── Assets/                  # Custom addon icon
-├── release-notes/           # Per-version release notes (one file per version)
-├── .pkgmeta                 # Packager config for the release workflow
-├── .github/workflows/
-│   └── release.yml          # CI: tag push → package + upload to CurseForge, Wago, GitHub
-├── LICENSE                  # MIT
-├── CONTRIBUTING.md          # How to build, test, and submit PRs
-├── build.sh                 # CurseForge build script (versioned zip)
-├── deploy-local.sh          # Local dev: build + install into your WoW AddOns folder (path from .env)
-└── .env.example             # Template for .env (gitignored); set WOW_ADDONS_DIR to your AddOns path
-```
 
 ## How It Works
 
@@ -189,35 +159,14 @@ BarSnap saves presets to two SavedVariables that persist across WoW sessions:
 - `BarSnapDB` — Global (account-wide) presets shared across all characters
 - `BarSnapCharDB` — Per-character presets and the last-selected scope preference
 
-## Version
+## Author
 
-**Current Version:** 1.2.3
-**Author:** justLuther
-**License:** [MIT](LICENSE)
+justLuther
 
 ## Releasing
 
-Releases are built and published by GitHub Actions (`.github/workflows/release.yml`)
-using the [BigWigsMods packager](https://github.com/BigWigsMods/packager), triggered
-when you push a **version tag**.
-
-To cut a release:
-
-1. Bump `## Version` in `BarSnap.toc` and create `release-notes/<version>.md` with that
-   version's notes — this file becomes the changelog shown on CurseForge/Wago.
-2. Land the bump on `main` via pull request (direct pushes to `main` are blocked),
-   then tag and push the tag — only tags on `main` are published:
-   ```bash
-   git tag v1.2.3
-   git push origin v1.2.3
-   ```
-3. The workflow packages the addon and uploads it to CurseForge, Wago, and GitHub Releases.
-
-**One-time setup:** add the `CF_API_KEY` and `WAGO_API_KEY` repository secrets
-(Settings → Secrets and variables → Actions). Both are required — if either is missing
-the workflow skips the upload (with a warning) rather than publishing to only one
-platform. Project IDs already live in `BarSnap.toc` (`## X-Curse-Project-ID`,
-`## X-Wago-ID`). `build.sh` remains available for manual local packaging.
+Releases are cut by the maintainer by pushing a version tag on `main`; the steps are in the header of
+[`.github/workflows/release.yml`](.github/workflows/release.yml).
 
 ## Contributing
 

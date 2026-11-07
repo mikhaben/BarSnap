@@ -22,11 +22,13 @@ ignore:
   - .pkgmeta
   - .gitignore
   - .luacheckrc
+  - check.sh
+  - sgconfig.yml
+  - lint-rules
   - .env
   - .env.example
   - .claude
   - AGENTS.md
-  - CLAUDE.md
   - CONTRIBUTING.md
   - MARKETING.md
   - build
