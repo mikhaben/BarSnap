@@ -1,0 +1,8 @@
+id: no-comments
+language: lua
+severity: error
+message: "Comments are banned. Say it with a name, an assert or error message, or a test; the reason for a change goes in the commit message."
+rule:
+  kind: comment
+ignores:
+  - "**/Libs/**"

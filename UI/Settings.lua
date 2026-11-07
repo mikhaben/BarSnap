@@ -1,9 +1,4 @@
---[[
-    BarSnap - Action Bar Preset Manager
-    UI/Settings.lua - Blizzard addon settings panel
-]]--
-
-local AddonName, NS = ...
+local _, NS = ...
 
 local PADDING_LEFT = 16
 local PADDING_TOP = -16
@@ -11,17 +6,14 @@ local PADDING_TOP = -16
 function NS.InitializeSettings()
     local panel = CreateFrame("Frame", "BarSnapSettingsPanel")
 
-    -- Title + version
     local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", PADDING_LEFT, PADDING_TOP)
     title:SetText("BarSnap " .. (NS.version or ""))
 
-    -- Author
     local author = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     author:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
     author:SetText("by justLuther")
 
-    -- Slash command hints
     local hint = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     hint:SetPoint("TOPLEFT", author, "BOTTOMLEFT", 0, -6)
     hint:SetText("/bs or /barsnap — toggle window")
@@ -32,7 +24,6 @@ function NS.InitializeSettings()
     debugHint:SetText("/bs debug — dump every non-empty action slot to chat (diagnostic)")
     debugHint:SetTextColor(unpack(NS.COLOR_GRAY))
 
-    -- Open button
     local openBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
     openBtn:SetSize(160, 28)
     openBtn:SetPoint("TOPLEFT", debugHint, "BOTTOMLEFT", 0, -16)
@@ -41,7 +32,6 @@ function NS.InitializeSettings()
         NS.ToggleMainFrame()
     end)
 
-    -- Register with Blizzard Settings
     local category = Settings.RegisterCanvasLayoutCategory(panel, "BarSnap")
     category.ID = "BarSnap"
     Settings.RegisterAddOnCategory(category)

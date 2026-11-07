@@ -1,19 +1,11 @@
-local AddonName, NS = ...
+local _, NS = ...
 
-----------------------------------------------------------------------
--- Per-apply lookup caches. Built once at the start of ApplyPreset
--- and reused across all 132 slots (including retries) so a preset with
--- N mounts on a maxed-collector account doesn't do N × 500 journal scans.
-----------------------------------------------------------------------
-local mountCache = nil   -- [mountID] = displayIndex
-local flyoutCache = nil  -- [flyoutID] = spellbookIndex
+local mountCache = nil
+local flyoutCache = nil
 
--- Macro caches: split by pool so FindMacroIndex can honour action.isCharacter
--- without scanning the wrong pool. Built lazily so FindMacroIndex remains
--- usable outside an ApplyPreset call (e.g. from /bs debug).
-local macroNameAcct = nil   -- [name] = index  (account pool, indices 1..MAX_ACCOUNT_MACROS)
-local macroNameChar = nil   -- [name] = index  (character pool)
-local macroHashAcct = nil   -- [bodyHash] = index
+local macroNameAcct = nil
+local macroNameChar = nil
+local macroHashAcct = nil
 local macroHashChar = nil
 
 local function BuildMacroCaches()
@@ -39,17 +31,6 @@ local function BuildMacroCaches()
     macroHashAcct, macroHashChar = ha, hc
 end
 
-----------------------------------------------------------------------
--- Resolve a macro action to a WoW macro index. Lookup order:
---   1. Name in the saved pool (most specific — survives same-name dup
---      across pools because we recorded isCharacter at scan time).
---   2. Body hash in the saved pool (survives rename).
---   3. Body hash in the other pool (survives pool migration, e.g. user
---      moved an account macro into the character pool).
---   4. nil — caller falls back to PickupMacro(name) at place time.
--- Legacy presets (isCharacter == nil) search both pools account-first
--- by name, then by hash, matching pre-1.1 behaviour.
-----------------------------------------------------------------------
 function NS.FindMacroIndex(action)
     if not action or not action.name then return nil end
     if not macroNameAcct then BuildMacroCaches() end
@@ -64,7 +45,6 @@ function NS.FindMacroIndex(action)
         if h and macroHashAcct[h] then return macroHashAcct[h] end
         if h and macroHashChar[h] then return macroHashChar[h] end
     else
-        -- Legacy: account-first across both pools
         if macroNameAcct[action.name] then return macroNameAcct[action.name] end
         if macroNameChar[action.name] then return macroNameChar[action.name] end
         if h and macroHashAcct[h] then return macroHashAcct[h] end
@@ -102,11 +82,6 @@ local function BuildFlyoutCache()
     return cache
 end
 
-----------------------------------------------------------------------
--- Place a single action into a slot by type. Returns true on success.
--- Caller wraps in pcall (see PlaceActionByType) so an unexpected WoW
--- API error doesn't kill the whole apply loop.
-----------------------------------------------------------------------
 local function PlaceActionImpl(slot, action)
     if not action or not action.type then return false end
 
@@ -128,11 +103,6 @@ local function PlaceActionImpl(slot, action)
         if macroIdx then
             PickupMacro(macroIdx)
         elseif action.name then
-            -- Last-resort fallback: hand the name to WoW and let its own
-            -- resolver pick. Fires only after the name+hash chain missed,
-            -- so a mistakenly-pooled or transient-encoding case still
-            -- restores instead of silently failing. WoW may choose the
-            -- "wrong" pool here, but that's strictly better than a blank.
             PickupMacro(action.name)
         else
             return false
@@ -140,7 +110,6 @@ local function PlaceActionImpl(slot, action)
 
     elseif t == "mount" then
         if not id or not C_MountJournal then return false end
-        -- Random Favourite Mount uses sentinel ID
         if id == 0 or id == 0xFFFFFFF then
             C_MountJournal.Pickup(0)
         else
@@ -148,7 +117,6 @@ local function PlaceActionImpl(slot, action)
             if displayIndex then
                 C_MountJournal.Pickup(displayIndex)
             else
-                -- Journal filter may have hidden the mount; fall back to its spell ID
                 local _, spellID = C_MountJournal.GetMountInfoByID(id)
                 if spellID then
                     C_Spell.PickupSpell(spellID)
@@ -202,10 +170,7 @@ local function PlaceActionByType(slot, action)
     return result
 end
 
-----------------------------------------------------------------------
--- Place with retry (up to RETRY_MAX attempts, RETRY_INTERVAL apart)
-----------------------------------------------------------------------
-local SAFETY_MAX = 10  -- absolute ceiling even if RETRY_MAX is corrupted
+local SAFETY_MAX = 10
 
 local function PlaceWithRetry(slot, action, attempt, callback)
     attempt = attempt or 1
@@ -233,29 +198,16 @@ local function PlaceWithRetry(slot, action, attempt, callback)
     end
 end
 
-----------------------------------------------------------------------
--- Clear a single slot
-----------------------------------------------------------------------
 local function ClearSlot(slot)
     ClearCursor()
     PickupAction(slot)
     ClearCursor()
 end
 
-----------------------------------------------------------------------
--- Decide what to do with a single slot. Three outcomes:
---   action  → place this action
---   "skip"  → leave the slot entirely alone (no place, no clear)
---   nil     → no action to place; caller may clear based on preserveLayout
---
--- "skip" is reserved for disabled bars: a user (or the legacy-preset
--- migration) opting out of an entire bar means "don't touch it", not
--- "wipe it". This is what makes the bars-9-11 migration safety hold —
--- a legacy preset whose barFilters[9-11] default to false will leave
--- form/dragonriding bars untouched even when preserveLayout is off.
-----------------------------------------------------------------------
+local LEAVE_SLOT_UNTOUCHED = "skip"
+
 local function SlotAction(preset, slot, bar)
-    if preset.barFilters and preset.barFilters[bar] == false then return "skip" end
+    if preset.barFilters and preset.barFilters[bar] == false then return LEAVE_SLOT_UNTOUCHED end
     local action = preset.actions[slot]
     if not action then return nil end
     local fk = NS.TYPE_MAP[action.type]
@@ -263,19 +215,6 @@ local function SlotAction(preset, slot, bar)
     return action
 end
 
-----------------------------------------------------------------------
--- Returns a list of "special" bar numbers (7-12 = form/stance pages
--- and Dragonriding override) that this preset would visibly modify on
--- apply, or nil if none. A bar counts as "modified" when its filter is
--- enabled AND either the preset has actions that would actually be
--- placed (passing category filters) OR preserveLayout is off and the
--- current bar has any actions to clear. No-op clears (empty preset
--- slots + empty current slots) and category-filtered slots do not
--- trigger the warning — false positives train users to click through
--- every popup.
--- Bars 13-15 (Blizzard's MultiBar5/6/7 = visible Action Bar 6/7/8) are
--- regular user-facing bars, not special — they don't need the popup.
-----------------------------------------------------------------------
 function NS.GetAffectedSpecialBars(preset)
     if not preset or not preset.barFilters then return nil end
 
@@ -314,11 +253,6 @@ function NS.GetAffectedSpecialBars(preset)
     return affected
 end
 
-----------------------------------------------------------------------
--- Apply a full preset. Combat-guarded; does not show any UI. Callers
--- that need a form-bar confirmation popup go through
--- NS.RequestApplyPreset (UI layer).
-----------------------------------------------------------------------
 function NS.ApplyPreset(preset)
     if not NS.CanModifyBars() then return end
 
@@ -327,15 +261,13 @@ function NS.ApplyPreset(preset)
         return
     end
 
-    -- Populate caches for this apply (cleared at the end so the journal
-    -- and spellbook can refilter freely afterwards).
     mountCache = BuildMountCache()
     flyoutCache = BuildFlyoutCache()
     BuildMacroCaches()
 
     local placed = 0
     local skipped = 0
-    local pending = 1  -- sentinel: prevents early summary during loop
+    local pending = 1
 
     local function onComplete()
         pending = pending - 1
@@ -359,20 +291,17 @@ function NS.ApplyPreset(preset)
         local bar = math.ceil(slot / NS.SLOTS_PER_BAR)
         local outcome = SlotAction(preset, slot, bar)
 
-        if outcome == "skip" then
-            -- Bar disabled — leave the slot exactly as it is
-        elseif outcome then
+        if outcome == nil then
+            if not preset.preserveLayout then ClearSlot(slot) end
+        elseif outcome ~= LEAVE_SLOT_UNTOUCHED then
             pending = pending + 1
             PlaceWithRetry(slot, outcome, 1, function(success)
                 if success then placed = placed + 1
                 else skipped = skipped + 1 end
                 onComplete()
             end)
-        elseif not preset.preserveLayout then
-            ClearSlot(slot)
         end
     end
 
-    -- Release sentinel — if all callbacks already fired, this prints the summary
     onComplete()
 end

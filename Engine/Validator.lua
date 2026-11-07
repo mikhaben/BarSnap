@@ -1,8 +1,5 @@
-local AddonName, NS = ...
+local _, NS = ...
 
-----------------------------------------------------------------------
--- Combat guard
-----------------------------------------------------------------------
 function NS.CanModifyBars()
     if InCombatLockdown() then
         NS.Warn("Leave combat first")
@@ -11,10 +8,6 @@ function NS.CanModifyBars()
     return true
 end
 
-----------------------------------------------------------------------
--- Validate preset name (non-empty, trimmed)
--- Returns cleaned name or nil on failure
-----------------------------------------------------------------------
 function NS.ValidateName(name)
     if type(name) ~= "string" then return nil end
     name = name:trim()
@@ -22,10 +15,6 @@ function NS.ValidateName(name)
     return name
 end
 
-----------------------------------------------------------------------
--- Ensure unique name among existing presets
--- Appends " (2)", " (3)" etc. if needed
-----------------------------------------------------------------------
 function NS.UniqueName(name, excludeIndex)
     local presets = NS.GetActivePresets()
     if not presets then return name end

@@ -1,30 +1,13 @@
 local AddonName, NS = ...
 
--- Bar N occupies slots (N-1)*SLOTS_PER_BAR + 1 .. N*SLOTS_PER_BAR.
--- Retail slot layout:
---   1-12     Main bar (Action Bar 1, visible)
---   13-24    Main bar page 2 (paging slot, usually unused)
---   25-72    Blizzard MultiBar1-4 — visible as Action Bar 2-5 in the
---            options panel (Bottom Left, Bottom Right, Right, Left;
---            Blizzard's label ↔ internal MultiBar mapping is not 1:1)
---   73-120   Class form/stance pages — Druid Bear (73-84), Cat (85-96),
---            Moonkin (97-108), Travel (109-120); Rogue Stealth at 73-84;
---            Warrior stances 73-108; Evoker bonus 73-84. Paged onto
---            Bar 1 when in form — NOT separate visible bars.
---   121-132  Dragonriding override / vehicle / possess (paged)
---   133-144  Reserved / unused
---   145-180  Blizzard MultiBar5/6/7 — visible as Action Bar 6, 7, 8
---            in the options panel.
 NS.SLOT_MIN = 1
 NS.SLOT_MAX = 180
 NS.BAR_COUNT = 15
 NS.SLOTS_PER_BAR = 12
 
--- Retry config for restore operations
 NS.RETRY_MAX = 5
 NS.RETRY_INTERVAL = 0.1
 
--- Action categories (order matters for UI display)
 NS.CATEGORIES = {
     { key = "spells", label = "Spells" },
     { key = "macros", label = "Macros" },
@@ -34,7 +17,6 @@ NS.CATEGORIES = {
     { key = "pets",   label = "Pets" },
 }
 
--- Default filters (all enabled)
 NS.DEFAULT_FILTERS = {
     spells = true,
     macros = true,
@@ -44,16 +26,6 @@ NS.DEFAULT_FILTERS = {
     pets   = true,
 }
 
--- Default bar filters.
--- Enabled by default: bars 1-6 (the standard visible Action Bar 1 + the
--- 4 MultiBars) and bars 13-15 (the additional visible Action Bar 6-8
--- added in retail) — these are the bars a user can see and configure
--- directly in Blizzard's Action Bars options.
--- Disabled by default: bars 7-12 — class form/stance pages (Druid forms,
--- Rogue stealth, Warrior stances), Dragonriding override, and the
--- reserved page 12. Users opt-in via the editor if they want the addon
--- to manage their form bars.
--- Migration in Core.lua uses the same split.
 NS.DEFAULT_BAR_FILTERS = {
     [1]  = true,  [2]  = true,  [3]  = true,  [4]  = true,
     [5]  = true,  [6]  = true,
@@ -62,11 +34,6 @@ NS.DEFAULT_BAR_FILTERS = {
     [13] = true,  [14] = true,  [15] = true,
 }
 
--- Bar labels shown next to each editor checkbox. Bars 1 and 13-15 have
--- stable, class-agnostic identities (Main + the three visible Action
--- Bar 6/7/8 frames). Bars 7-12 are class-paged "special" bars — exact
--- form/stance assignment varies by class/spec/version, so we keep the
--- label generic and put context in BAR_TOOLTIPS.
 NS.BAR_LABELS = {
     [1]  = "Bar 1 (Main)",
     [7]  = "Bar 7 (Special)",
@@ -80,10 +47,6 @@ NS.BAR_LABELS = {
     [15] = "Bar 15 (UI 8)",
 }
 
--- Per-bar tooltips shown on hover in the editor. Bars 7-12 share the
--- same generic "paged special bar" description because the exact
--- class/form assignment to each page varies and is not worth
--- promising in the UI — users discover the mapping with /bs debug.
 local SPECIAL_BAR_TOOLTIP =
     "Slots %d-%d. Special paged bar.\nUsed by some classes for stance/form/override paging — when in the relevant state, your main bar displays these slots. Not visible as a separate bar in the Blizzard UI.\nRun /bs debug to see exactly which BarSnap bar holds the actions you placed."
 
@@ -111,21 +74,18 @@ NS.BAR_TOOLTIPS = {
     [15] = "Slots 169-180. Blizzard's MultiActionBar7 — visible as Action Bar 8 in the Blizzard Action Bars options.",
 }
 
--- Map GetActionInfo type strings to our category keys
--- Maps both WoW API type strings AND our stored type strings to category keys
 NS.TYPE_MAP = {
     spell        = "spells",
     item         = "items",
     macro        = "macros",
-    summonmount  = "mounts",  -- WoW API type
-    mount        = "mounts",  -- our stored type
+    summonmount  = "mounts",
+    mount        = "mounts",
     toy          = "toys",
-    flyout       = "spells",  -- flyouts grouped with spells
-    equipmentset = "items",   -- equipment sets grouped with items
-    summonpet    = "pets",    -- battle pets
+    flyout       = "spells",
+    equipmentset = "items",
+    summonpet    = "pets",
 }
 
--- Layout
 NS.MAIN_WIDTH      = 260
 NS.EDITOR_WIDTH    = 330
 NS.ROW_HEIGHT      = 30
@@ -134,30 +94,24 @@ NS.BTN_SIZE        = 20
 NS.PADDING         = 10
 NS.TITLE_BAR_HEIGHT = 28
 
--- Colors {r, g, b}
 NS.COLOR_WHITE      = { 1, 1, 1 }
 NS.COLOR_YELLOW     = { 1, 0.82, 0 }
 NS.COLOR_GRAY       = { 0.5, 0.5, 0.5 }
 NS.COLOR_LABEL_GRAY = { 0.8, 0.8, 0.8 }
 
--- Textures
-NS.TEX_FALLBACK_ICON = 134400  -- INV_Misc_QuestionMark
+NS.TEX_FALLBACK_ICON = 134400
 NS.TEX_PLAY          = "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up"
 NS.TEX_EDIT          = "Interface\\WorldMap\\GEAR_64GREY"
 NS.TEX_TRASH         = "Interface\\Buttons\\UI-GroupLoot-Pass-Up"
 NS.TEX_HIGHLIGHT     = "Interface\\Buttons\\ButtonHilight-Square"
 
--- Icon texture coordinate crop
 NS.ICON_TEXCOORD = { 0.08, 0.92, 0.08, 0.92 }
 
--- Chat prefix
 NS.CHAT_PREFIX = "|cff33bbff" .. AddonName .. ":|r "
 
--- Preset scope
 NS.SCOPE_GLOBAL    = "global"
 NS.SCOPE_CHARACTER = "character"
 NS.SCOPE_BTN_HEIGHT = 24
 
--- StaticPopup dialog names
 NS.POPUP_DELETE_PRESET     = "BARSNAP_DELETE_PRESET"
 NS.POPUP_CONFIRM_FORM_BARS = "BARSNAP_CONFIRM_FORM_BARS"

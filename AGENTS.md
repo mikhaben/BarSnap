@@ -1,140 +1,163 @@
 # BarSnap
 
-World of Warcraft addon that saves and restores action bar presets. Players capture their current bar configuration (all 180 slots across bars 1-15) into named presets, then swap between them with one click. Features global and per-character preset scoping, category-based filtering, per-bar filtering, custom icons, layout preservation, confirmation popups for form/dragonriding/modern Edit Mode bars, and a draggable UI with preset editor.
+## North star
+
+A World of Warcraft addon that saves the player's action bars into named presets and restores one
+with a click, without wiping bars the player did not ask it to touch. Presets are account-wide or
+per-character, and filter what they restore by action category and by bar. Retail only.
 
 ## Commands
 
-- `/bs` or `/barsnap` — Toggle main window
-- `/bs debug` — Print every non-empty action slot to chat (diagnostic; shows type, id, macro pool)
+- `./check.sh` — must pass before a commit. It runs `luacheck .` (config in `.luacheckrc`: a new
+  WoW API the addon reads goes in `read_globals`, a global it writes goes in `globals`), the
+  no-comments rule (`ast-grep scan`, rule in `lint-rules/`) and the 1000-line cap per Lua file.
+  Needs `brew install luacheck ast-grep`.
+- `./build.sh` — versioned zip in `build/`.
+- `./deploy-local.sh` — build and install into the local AddOns folder (`WOW_ADDONS_DIR` in the
+  gitignored `.env`, template `.env.example`).
+- In game: `/bs` or `/barsnap` toggles the window; `/bs debug` prints every non-empty slot (type,
+  id, macro pool), with a per-bar summary first. There is no automated test suite; changes are
+  checked in game after `/reload`.
 
-## Project Structure
+## Feature map
 
-```
-BarSnap/
-├── BarSnap.toc            # TOC metadata, load order, SavedVariables declaration
-├── Constants.lua          # All shared constants: slot model, dimensions, textures, colors, categories, type mappings, BAR_LABELS/BAR_TOOLTIPS
-├── Core.lua               # Namespace init, SavedVariables management, preset validation/migration, slash command dispatch, NS.HashMacroBody
-├── Engine/
-│   ├── Scanner.lua        # ScanBars (sparse table over 180 slots) + DebugScan diagnostic + duplicate-name detection
-│   ├── Validator.lua      # Combat guard, preset name validation, unique-name suffixing
-│   └── Restore.lua        # ApplyPreset, FindMacroIndex with name+hash caches, mount/flyout caches, retry logic, GetAffectedSpecialBars
-├── UI/
-│   ├── WindowFactory.lua  # NS.CreateWindow — floating-vs-docked window builder reused by every frame
-│   ├── PresetRow.lua      # Preset list row component (icon, name, apply/edit buttons, row pooling)
-│   ├── EditorFrame.lua    # Preset editor (icon picker, name, category + per-bar checkboxes with tooltips, special-bar confirmation popup, RequestApplyPreset)
-│   ├── MainFrame.lua      # Main floating window (preset list, save button, scroll, drag, scope toggle, ESC close)
-│   └── Settings.lua       # Blizzard addon settings panel
-├── Assets/
-│   └── logo.tga           # Addon icon
-├── release-notes/         # Per-version changelog (release-notes/<version>.md → CurseForge/Wago description)
-├── .pkgmeta               # BigWigsMods packager config (package name, manual-changelog, ignore list)
-├── .github/
-│   ├── workflows/
-│   │   └── release.yml    # CI: on tag push, package + upload to CurseForge, Wago, GitHub Releases
-│   ├── ISSUE_TEMPLATE/    # Bug report + feature request templates
-│   └── PULL_REQUEST_TEMPLATE.md
-├── LICENSE                # MIT, copyright justLuther (ships in the release zip)
-├── CONTRIBUTING.md        # Build/test/style guide for contributors (excluded from zip)
-├── build.sh               # CurseForge build script (versioned zip)
-├── deploy-local.sh        # Local dev: build + install into your WoW AddOns folder (path from .env)
-└── .env.example           # Template for .env (gitignored); set WOW_ADDONS_DIR to your AddOns path
-```
+Load order is the file list in `BarSnap.toc`. `Constants.lua` loads first, and `UI/WindowFactory.lua`
+before any frame that calls `NS.CreateWindow`.
 
-**Load order:** Constants → Core → Engine (Scanner, Validator, Restore) → UI (WindowFactory, PresetRow, EditorFrame, MainFrame, Settings). Constants must load first so shared values are available everywhere; `WindowFactory` must load before any UI frame that calls `NS.CreateWindow`.
+| Feature | Where |
+| --- | --- |
+| Slot model, bar labels and tooltips, categories, `NS.TYPE_MAP`, sizes, textures, colors | `Constants.lua` |
+| SavedVariables init, preset validation and migration, scope accessors, slash commands, `NS.HashMacroBody` | `Core.lua` |
+| Reading the bars into a preset, `/bs debug` | `Engine/Scanner.lua` |
+| Combat guard, preset name validation and de-duplication | `Engine/Validator.lua` |
+| Applying a preset: per-apply caches, macro lookup, retries, special-bar detection | `Engine/Restore.lua` |
+| Floating or docked window builder used by every frame | `UI/WindowFactory.lua` |
+| Preset list rows (pooled) | `UI/PresetRow.lua` |
+| Preset editor, icon picker, delete and special-bar popups, `NS.RequestApplyPreset` | `UI/EditorFrame.lua` |
+| Main window: preset list, save button, scope toggle | `UI/MainFrame.lua` |
+| Blizzard settings panel | `UI/Settings.lua` |
+| Packaging and upload | `.github/workflows/release.yml`, `.pkgmeta` |
 
 ## Architecture
 
-All modules share a single namespace: `local AddonName, NS = ...` passed via the TOC addon system. The namespace is exposed globally as `_G.BarSnap` for debugging.
+All files share one namespace: `local _, NS = ...` (`AddonName` in place of `_` where a file uses
+it), exposed as `_G.BarSnap` for debugging.
 
-**Core** (`Core.lua`) initializes both `BarSnapDB` (global) and `BarSnapCharDB` (per-character) SavedVariables on `PLAYER_LOGIN`, merging with defaults and validating presets in both stores. Provides `NS.DeepCopy()`, `NS.Print()` (blue prefix), `NS.Warn()` (red prefix), `NS.SetupTooltip()` helpers, and scope accessor functions (`NS.GetActiveScope()`, `NS.SetActiveScope()`, `NS.GetActivePresets()`) that all modules use instead of accessing preset arrays directly.
+**Core** initializes `BarSnapDB` (account) and `BarSnapCharDB` (character) on `PLAYER_LOGIN`,
+merging defaults and validating the presets in both. It provides `NS.DeepCopy()`, `NS.Print()`,
+`NS.Warn()`, `NS.SetupTooltip()` and the scope accessors (`NS.GetActiveScope()`,
+`NS.SetActiveScope()`, `NS.GetActivePresets()`) that every module uses instead of the preset arrays.
 
-**Constants** (`Constants.lua`) centralizes all UI dimensions, texture paths, color tuples, action categories, and the `NS.TYPE_MAP` that maps WoW API action types to category keys (e.g., `summonmount` → `"mounts"`, `flyout` → `"spells"`).
+**Scanner** reads every slot with `GetActionInfo()` and classifies it as
+spell/item/macro/mount/toy/flyout/equipmentset/summonpet. Spells are stored as their base spell ID
+(`FindBaseSpellByID`), so presets survive talent and spec changes. Items that are toys are
+reclassified; legacy `companion` types resolve to toy or summonpet. Macro entries store
+`isCharacter` and a `bodyHash`, which together let restore survive renames and pool moves. A slot
+whose macro reference is broken (WoW returns id 0 or nil) is reported with slot and bar instead of
+dropped, as ActionBarSaverReloaded does. One summary at the end warns when captured macros share a
+name across pools. `NS.ScanBars()` returns a sparse table: only non-empty slots.
 
-**Scanner** (`Engine/Scanner.lua`) reads all 180 slots (15 bars × 12 slots) via `GetActionInfo()`, classifying each as spell/item/macro/mount/toy/flyout/equipmentset/summonpet. Slots 1-72 cover the Main bar + 4 legacy MultiBars. Slots 73-120 (pages 7-10) are class-paged "special" bars used by some classes for form/stance/bonus paging — exact bar↔form assignment varies by class/spec and is intentionally NOT promised in our UI (we label them "Special" and let users discover via `/bs debug`). Slots 121-132 (page 11) are the Dragonriding/Skyriding override bar. Slots 133-144 (page 12) are reserved and usually empty. Slots 145-180 (pages 13-15) are Blizzard's MultiBar5/6/7 frames — visible as Action Bar 6/7/8 in the Action Bars options panel. Items that are toys are auto-reclassified; legacy `companion` types are resolved to toy or summonpet. Macro entries include an `isCharacter` flag (true/false) AND a `bodyHash` (DJB2 of the whitespace-normalized body via `NS.HashMacroBody`) — together these let restore tolerate renames and pool migrations. Broken macro references (WoW returns id=0/nil) are warned with slot+bar instead of silently dropped (mirrors ActionBarSaverReloaded's pattern). At end of scan, a single summary warns if any captured macros have duplicate names across pools. `NS.ScanBars()` returns a sparse actions table (only non-empty slots stored). `NS.CountActions()` counts entries for display. `NS.DebugScan()` powers `/bs debug` — dumps every non-empty slot to chat for diagnostics.
+**Validator** guards bar changes: `NS.CanModifyBars()` refuses during `InCombatLockdown()` with a
+warning, `NS.ValidateName(name)` trims and validates, and `NS.UniqueName(name, excludeIndex)`
+appends " (2)", " (3)" within the active scope.
 
-**Validator** (`Engine/Validator.lua`) provides guards called before bar modification:
-- `NS.CanModifyBars()` — blocks during `InCombatLockdown()`
-- `NS.ValidateName(name)` — trims and validates preset names
-- `NS.UniqueName(name, excludeIndex)` — auto-appends " (2)", " (3)" etc. for duplicates within the active scope
+**Restore** applies presets. `NS.ApplyPreset(preset)` walks every slot: bar filter first, then
+category filter, then place the action with its type's pickup API, or clear the slot unless
+`preserveLayout` is on. `ApplyPreset` is unconditional; the special-bar confirmation lives in the
+UI (`NS.RequestApplyPreset`).
 
-**Restore** (`Engine/Restore.lua`) applies presets to bars. `NS.ApplyPreset(preset)` iterates all 180 slots — first checks per-bar filters (`barFilters`), then per-category filters, clears empty ones (unless `preserveLayout` is on), and places actions using type-specific pickup APIs. Form/dragonriding confirmation is handled by the UI layer (`NS.RequestApplyPreset` in `EditorFrame.lua`) — `ApplyPreset` itself is unconditional. Per-apply caches (mount, flyout, macro name-by-pool, macro hash-by-pool) are built at start and cleared on completion. `NS.FindMacroIndex(action)` resolves a macro record through a four-step chain — name in saved pool → hash in saved pool → hash in other pool → nil — and PlaceActionImpl falls back to `PickupMacro(action.name)` when the chain misses. Failed placements retry up to `NS.RETRY_MAX` (5) times at `NS.RETRY_INTERVAL` (0.1s) intervals using `C_Timer.After()`. An async sentinel counter delays the summary chat message until all retries complete.
+- A disabled bar returns `LEAVE_SLOT_UNTOUCHED` from `SlotAction`: its slots are neither placed nor
+  cleared, even with `preserveLayout` off. The legacy-preset migration relies on this.
+- Mount and flyout caches are built once per apply and cleared at the end, so a preset with many
+  mounts does not rescan the mount journal per slot, and the journal can refilter afterwards. The
+  macro caches (name and body hash, per pool) are built lazily, so `NS.FindMacroIndex` also works
+  outside an apply, as in `/bs debug`.
+- Placement runs inside `pcall` (`PlaceActionByType`), so one WoW API error does not stop the
+  apply loop.
+- A mount hidden by the journal filter is placed through its spell ID. Random Favourite Mount uses
+  a sentinel ID.
+- Failed placements retry through `C_Timer.After()` up to `NS.RETRY_MAX`, under a hard ceiling that
+  holds even if that constant is corrupted, and stop if combat starts. A pending counter, plus one
+  sentinel call after the loop, holds the summary message until every retry resolves.
 
-**UI** consists of five modules. `WindowFactory` (`NS.CreateWindow`) builds either floating (draggable, ESC-closeable, centered) or docked (anchored to a parent frame) windows from a single `BasicFrameTemplateWithInset`-based constructor — every other UI frame goes through it. `PresetRow` uses object pooling for scroll-list rows. `EditorFrame` provides the modal editor anchored to the right of the main window, with an icon picker grid, `StaticPopupDialogs[NS.POPUP_DELETE_PRESET]` for delete confirmation, `StaticPopupDialogs[NS.POPUP_CONFIRM_FORM_BARS]` for the form-bar guard, and the public `NS.RequestApplyPreset` entry point that gates `ApplyPreset` behind that popup. `MainFrame` creates the draggable floating window with a scope toggle button (Global/Character), manages the preset scroll list via `WowScrollBoxList`, dynamically resizes (170-500px height), and registers with `UISpecialFrames` for ESC close. `Settings` registers a Blizzard addon settings panel with an "Open BarSnap" button.
+**UI.** `WindowFactory` builds floating (draggable, ESC-closeable) or docked windows from one
+`BasicFrameTemplateWithInset` constructor. `PresetRow` pools rows for the `WowScrollBoxList`.
+`MainFrame` lets `ScrollUtil` manage the scroll bar's visibility and anchors; setting them by hand
+races its callbacks. The main window sizes its height to the list and registers in
+`UISpecialFrames` for ESC.
 
-## Data Model
+## Data model
 
-Persisted via WoW SavedVariables. Two separate stores:
+Two SavedVariables stores:
 
-### BarSnapDB (account-wide, `SavedVariables`)
+- `BarSnapDB` (account-wide): `presets`.
+- `BarSnapCharDB` (per character): `presets`, and `scope` (`"global"` or `"character"`), the last
+  scope this character selected.
 
-- **presets** — Array of global preset objects (shared across all characters)
+Each preset holds:
 
-### BarSnapCharDB (per-character, `SavedVariablesPerCharacter`)
+- `name`, `icon` (texture ID), `timestamp` (unix), `specID` (0 if none).
+- `preserveLayout`: when true, slots the preset does not list are left alone instead of cleared.
+- `filters`: per category (`spells`, `macros`, `items`, `mounts`, `toys`, `pets`).
+- `barFilters`: per bar, keyed 1-15. See the slot layout below.
+- `actions`: sparse, keyed by slot. Values are `{type, id}`, `{type="macro", name, isCharacter,
+  bodyHash}` or `{type="equipmentset", name}`.
 
-- **presets** — Array of character-specific preset objects
-- **scope** — `"global"` or `"character"` — persists the last-selected scope per character
+New presets deep-copy `NS.DEFAULT_FILTERS` and `NS.DEFAULT_BAR_FILTERS`, so presets never share a
+table. All modules read presets through `NS.GetActivePresets()`; only Core's initialization touches
+`NS.db.presets` or `NS.charDb.presets`.
 
-### Preset Object Schema
+### Slot layout (retail)
 
-Each preset (in either store) contains:
-- `name` (string), `icon` (texture ID), `timestamp` (unix), `specID` (int, 0 if none)
-- `preserveLayout` (bool) — when true, unlisted slots are left untouched instead of cleared
-- `filters` — per-category booleans: `spells`, `macros`, `items`, `mounts`, `toys`, `pets`
-- `barFilters` — per-bar booleans keyed 1-15: controls whether each action bar is restored. Bars 1-6 are the standard visible action bars (Main + 4 MultiBars, slots 1-72). Bars 7-10, 12 (slots 73-120, 133-144) are class-paged "special" bars — paged onto Bar 1 dynamically for some classes' forms/stances/bonus pages; exact bar↔form assignment varies by class/spec and is left unlabelled in the UI. Bar 11 (slots 121-132) is the Dragonriding/Skyriding override bar — directly editable in the default Blizzard UI when on a flying mount. Bars 13-15 (slots 145-180) are Blizzard's MultiBar5/6/7 — visible as **Action Bar 6, 7, 8** in the Action Bars options panel. See `NS.BAR_TOOLTIPS` in Constants.lua for per-bar hover text.
-- `actions` — sparse table keyed by slot number (1-180), values are `{type, id}`, `{type="macro", name, isCharacter, bodyHash}` for macros, or `{type="equipmentset", name}` for equipment sets
+Bar N covers slots `(N-1)*12+1` to `N*12`.
 
-Defaults are deep-copied from `NS.DEFAULT_FILTERS` (all categories true) and `NS.DEFAULT_BAR_FILTERS` (bars 1-6 + 13-15 true, bars 7-12 false — see the **Bar filters** decision below) on preset creation to avoid reference sharing.
+| Slots | Bar | What it is |
+| --- | --- | --- |
+| 1-12 | 1 | Main bar (Action Bar 1) |
+| 13-24 | 2 | Main bar page 2, usually unused |
+| 25-72 | 3-6 | MultiBar1-4, shown as Action Bar 2-5 in the options; Blizzard's labels do not map 1:1 to the internal MultiBar order |
+| 73-120 | 7-10 | Class form and stance pages (Druid forms, Rogue stealth, Warrior stances, Evoker), paged onto Bar 1 in that form, not separate bars |
+| 121-132 | 11 | Dragonriding/Skyriding override, vehicle, possess |
+| 133-144 | 12 | Reserved, usually empty |
+| 145-180 | 13-15 | MultiBar5-7, shown as Action Bar 6-8 |
 
-### Scope Accessor Pattern
+The UI labels bars 7-12 generically, because which form uses which page varies by class, spec and
+version; `/bs debug` shows the real mapping.
 
-All modules access presets through `NS.GetActivePresets()` which returns the correct array based on the current scope. No module accesses `NS.db.presets` or `NS.charDb.presets` directly (except Core.lua initialization).
+## Key design decisions
 
-## Key Design Decisions
+**Bar filters.** New presets restore bars 1-6 and 13-15 (everything visible in Blizzard's Action
+Bars options) and skip bars 7-12. Legacy presets are stricter: during migration any missing bar
+entry above 6 defaults to off, because pre-1.2 presets never scanned slots 97-180 and their data
+for those bars is unknown.
 
-**Sparse storage** — Only non-empty slots are stored in the actions table. Empty slots are nil, reducing memory and SavedVariables size.
+**Category filters.** `NS.TYPE_MAP` maps both WoW's type names and the stored ones to a category
+(WoW returns `"summonmount"`, BarSnap stores `"mount"`, both map to `"mounts"`).
 
-**Category filters** — Each preset has independent filter state, so you can restore spells but skip items from the same preset. Category mapping uses `NS.TYPE_MAP` to handle WoW API type names differing from stored types (e.g., WoW returns `"summonmount"`, we store `"mount"`, both map to the `"mounts"` category; `summonpet` maps to `"pets"`).
+**Macro pools.** WoW keeps account macros and character macros in separate index ranges
+(`MAX_ACCOUNT_MACROS`, `MAX_CHARACTER_MACROS`), and names can repeat across them. Restore resolves
+a macro by: its name in the saved pool, then its body hash in the saved pool (survives a rename),
+then its body hash in the other pool (survives a move between pools). When all three miss it calls
+`PickupMacro(action.name)` and lets WoW choose, which beats leaving the slot blank. Legacy presets
+without `isCharacter` search both pools, account first, by name and then hash.
+`NS.HashMacroBody` is DJB2 over the whitespace-normalized body, matching ActionBarProfiles'
+PackMacro, so formatting changes keep the hash; an empty body hashes to `nil`.
 
-**Bar filters** — Each preset has per-bar filter state (`barFilters[1..15]`). Disabled bars skip all slots in that bar range during restoration. Bar filters are checked before category filters in the restore loop. **New presets default bars 1-6 and 13-15 to true** (the user-visible Action Bars 1-5 + Action Bars 6-8) **and bars 7-12 to false** (class form pages and Dragonriding override — paged onto Bar 1 dynamically, not visible as separate bars). **Legacy presets are stricter**: any missing bar entry above 6 defaults to false during migration, because pre-1.2 presets never scanned slots 97-180 and we can't safely re-enable bars whose data we don't have.
+**Special bar confirmation.** Applying a preset that changes bars 7-12 can rewrite content the
+player cannot see, so `NS.RequestApplyPreset()` asks first when `GetAffectedSpecialBars()` reports
+a bar. A bar counts only when its filter is on and the apply would really place an action or clear
+a non-empty slot; no-op changes do not trigger the popup, so players do not learn to click through
+it. Bars 13-15 are ordinary visible bars and never trigger it. The popup keeps a reference to the
+preset and, on accept, checks it is still in the active scope's list, which rejects a deleted
+preset or a scope switch while the popup was open. The delete popup does the same.
 
-**Retry logic** — Action placement can fail due to race conditions with cursor state. The retry system is capped at 5 attempts with a hard ceiling of 10 to prevent infinite loops. Retries abort if combat starts mid-restoration.
-
-**Combat safety** — All bar modifications are guarded by `InCombatLockdown()`. This is a WoW API requirement — protected actions cannot be modified during combat.
-
-**Async completion tracking** — Restoration uses a pending counter incremented only when a retry is actually queued. The summary message fires only after all pending operations resolve, ensuring accurate placed/skipped counts.
-
-**Name uniqueness** — Preset names auto-deduplicate with numeric suffixes within the active scope. `UniqueName()` accepts an `excludeIndex` parameter for rename operations. The same name can exist in both global and character scopes.
-
-**Scope isolation** — Global presets live in `BarSnapDB`, character presets in `BarSnapCharDB`. A scope toggle button in the main window controls which store is active. `NS.SetActiveScope()` closes the editor before switching (prevents stale index access) and hides any active form bar popup. Each character remembers their last-selected scope.
-
-**Macro scope handling** — WoW allows both account-wide (indices 1-`MAX_ACCOUNT_MACROS`, currently 120 in Midnight) and character-specific (indices `MAX_ACCOUNT_MACROS+1` to `MAX_ACCOUNT_MACROS+MAX_CHARACTER_MACROS`, currently 121-150 in Midnight where `MAX_CHARACTER_MACROS=30`) macros with overlapping names. Each macro action stores `isCharacter` (true/false) AND a DJB2 `bodyHash` of the whitespace-normalized body at scan time. Restore lookup chain: (1) exact name in the saved pool — survives same-name duplicates across pools, (2) hash in the saved pool — survives rename, (3) hash in the other pool — survives pool migration (account ↔ character). If the chain misses, `PlaceActionImpl` falls back to `PickupMacro(action.name)` and lets WoW resolve — strictly additive last resort. Legacy presets (isCharacter == nil, bodyHash == nil) collapse to a name-only search across both pools, matching pre-1.1 behaviour. Hash function is whitespace-normalized (ABP-style) so trivial formatting changes don't break the match.
-
-**Special bar confirmation** — Bars 7-12 are class-paged "special" bars (form/stance/bonus paging for various classes, plus the Dragonriding override at bar 11). Most aren't visible as separate bars in the default UI — they swap onto Bar 1 when the relevant state activates — so applying a preset that touches them can silently rewrite content the user can't see. `NS.RequestApplyPreset()` (UI layer) checks via `GetAffectedSpecialBars()` (which considers both preset data and current bar state to avoid false positives) and shows a `StaticPopupDialog` confirmation before proceeding. Bars 13-15 (Action Bar 6-8 in Blizzard's UI) are NOT in the popup — they're regular user-facing bars. The popup captures preset identity (scope, name) rather than a direct reference, allowing re-resolution at confirm time to handle deletion/rename races and scope switches mid-dialog.
-
-## Build
-
-```bash
-./build.sh   # zips the addon into build/BarSnap_<version>_<date>.zip for CurseForge upload (reads version from TOC)
-./deploy-local.sh  # builds and installs into your local WoW _retail_/Interface/AddOns folder (reads WOW_ADDONS_DIR from .env — copy .env.example to .env)
-```
-
-Retail only — interface version, addon version, and SavedVariables names live in `BarSnap.toc`.
+**Scope isolation.** `NS.SetActiveScope()` closes the editor (no stale index) and hides an open
+special-bar popup before switching. The same name may exist in both scopes.
 
 ## Releasing
 
-CI (`.github/workflows/release.yml`) runs the [BigWigsMods packager](https://github.com/BigWigsMods/packager) **on pushed version tags** (`v*`) and uploads to CurseForge, Wago, and GitHub Releases. Tag-driven because the packager refuses to package a tag reached via a branch push (`Found future tag, not packaging`). `.pkgmeta` controls the zip contents — BarSnap embeds no libs, so there are no externals; dev/tooling files are stripped via its `ignore` list.
-
-Per-version changelog: the description shown on CurseForge/Wago comes from `release-notes/<version>.md`. A workflow step copies that file to `CHANGELOG.md` (gitignored, generated), which `.pkgmeta`'s `manual-changelog` feeds to the packager. Without it the packager dumps every commit message since the last tag.
-
-```bash
-# Release: bump ## Version in BarSnap.toc, add release-notes/<version>.md, commit to main, then:
-git tag v1.2.3
-git push origin v1.2.3
-```
-
-Requirements (one-time):
-- Repo secrets: `CF_API_KEY` (CurseForge), `WAGO_API_KEY` (Wago). `GITHUB_TOKEN` is automatic. The workflow maps these to the env vars the packager expects (`WAGO_API_KEY` → `WAGO_API_TOKEN`, `GITHUB_TOKEN` → `GITHUB_OAUTH`).
-- TOC directives `## X-Curse-Project-ID` and `## X-Wago-ID` — upload destinations.
-- Deploy is gated on **both** API keys: a `Check deploy credentials` step skips the build/upload (warning, job stays green) unless both are set — so it never publishes to just one platform.
-
-`build.sh` / `deploy-local.sh` remain the manual path for local zips and in-game testing.
+The flow is in the header of `.github/workflows/release.yml`. A GitHub ruleset on `main` requires
+a pull request (work lands on `develop`, then a `develop` → `main` PR) and restricts `v*` tags to
+admins. Pushing a `v*` tag publishes to CurseForge, Wago and GitHub Releases, so never push one
+unless asked. Deploy needs both `CF_API_KEY` and `WAGO_API_KEY`; with one missing the workflow
+skips the upload rather than publish to one platform.

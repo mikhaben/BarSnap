@@ -1,9 +1,6 @@
 local AddonName, NS = ...
 _G.BarSnap = NS
 
-----------------------------------------------------------------------
--- Defaults
-----------------------------------------------------------------------
 NS.defaults = {
     presets = {},
 }
@@ -13,9 +10,6 @@ NS.charDefaults = {
     scope = NS.SCOPE_CHARACTER,
 }
 
-----------------------------------------------------------------------
--- Deep copy
-----------------------------------------------------------------------
 function NS.DeepCopy(orig)
     if type(orig) ~= "table" then return orig end
     local copy = {}
@@ -25,9 +19,6 @@ function NS.DeepCopy(orig)
     return copy
 end
 
-----------------------------------------------------------------------
--- Merge defaults into saved (add missing keys only)
-----------------------------------------------------------------------
 local function MergeDefaults(saved, defaults)
     for k, v in pairs(defaults) do
         if saved[k] == nil then
@@ -43,11 +34,6 @@ local function MergeDefaults(saved, defaults)
     return saved
 end
 
-----------------------------------------------------------------------
--- DJB2 hash of a macro body. Whitespace-normalized (matches ABP's PackMacro)
--- so trivial formatting changes don't change the hash. Returns nil for
--- empty bodies — those carry no identifying information.
-----------------------------------------------------------------------
 function NS.HashMacroBody(body)
     if not body or body == "" then return nil end
     body = body:gsub("^%s+", ""):gsub("%s+\n", "\n"):gsub("\n%s+", "\n"):gsub("%s+$", "")
@@ -59,9 +45,6 @@ function NS.HashMacroBody(body)
     return h
 end
 
-----------------------------------------------------------------------
--- Chat helpers
-----------------------------------------------------------------------
 function NS.Print(msg)
     DEFAULT_CHAT_FRAME:AddMessage(NS.CHAT_PREFIX .. tostring(msg))
 end
@@ -70,9 +53,6 @@ function NS.Warn(msg)
     DEFAULT_CHAT_FRAME:AddMessage(NS.CHAT_PREFIX .. "|cffff5555" .. tostring(msg) .. "|r")
 end
 
-----------------------------------------------------------------------
--- Tooltip helper (replaces repeated OnEnter/OnLeave boilerplate)
-----------------------------------------------------------------------
 function NS.SetupTooltip(frame, title, bodyText, r, g, b)
     frame:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -85,9 +65,6 @@ function NS.SetupTooltip(frame, title, bodyText, r, g, b)
     frame:SetScript("OnLeave", GameTooltip_Hide)
 end
 
-----------------------------------------------------------------------
--- Read version from TOC metadata
-----------------------------------------------------------------------
 local function ReadVersion()
     local fn = C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata
     if fn then
@@ -95,9 +72,6 @@ local function ReadVersion()
     end
 end
 
-----------------------------------------------------------------------
--- Validate a presets array (skip corrupt entries, repair missing fields)
-----------------------------------------------------------------------
 local function ValidatePresets(presets)
     if type(presets) ~= "table" then
         NS.Warn("Preset store was corrupt (not a table) — resetting")
@@ -115,12 +89,6 @@ local function ValidatePresets(presets)
                     end
                 end
             end
-            -- Migration safety: when upgrading from a pre-1.2 preset that
-            -- never scanned slots 97-180, we default the new bars to
-            -- disabled so apply can't silently clear those slots. Bars
-            -- 7-12 stay disabled here for legacy presets too (we don't
-            -- know whether a legacy preset has valid form-bar data) —
-            -- new presets get the proper defaults from DEFAULT_BAR_FILTERS.
             if type(preset.barFilters) ~= "table" then
                 preset.barFilters = {}
             end
@@ -148,11 +116,7 @@ local function ValidatePresets(presets)
     return valid
 end
 
-----------------------------------------------------------------------
--- Database init
-----------------------------------------------------------------------
 local function InitializeDatabase()
-    -- Global (account-wide) database
     if not BarSnapDB then
         BarSnapDB = NS.DeepCopy(NS.defaults)
     else
@@ -161,7 +125,6 @@ local function InitializeDatabase()
     NS.db = BarSnapDB
     NS.db.presets = ValidatePresets(NS.db.presets)
 
-    -- Per-character database
     if not BarSnapCharDB then
         BarSnapCharDB = NS.DeepCopy(NS.charDefaults)
     else
@@ -170,15 +133,11 @@ local function InitializeDatabase()
     NS.charDb = BarSnapCharDB
     NS.charDb.presets = ValidatePresets(NS.charDb.presets)
 
-    -- Validate scope value
     if NS.charDb.scope ~= NS.SCOPE_GLOBAL and NS.charDb.scope ~= NS.SCOPE_CHARACTER then
         NS.charDb.scope = NS.SCOPE_GLOBAL
     end
 end
 
-----------------------------------------------------------------------
--- Scope accessors
-----------------------------------------------------------------------
 function NS.GetActiveScope()
     if NS.charDb then
         return NS.charDb.scope or NS.SCOPE_GLOBAL
@@ -201,9 +160,6 @@ function NS.GetActivePresets()
     return NS.db.presets
 end
 
-----------------------------------------------------------------------
--- Event frame
-----------------------------------------------------------------------
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:SetScript("OnEvent", function(self, event)
@@ -216,9 +172,6 @@ eventFrame:SetScript("OnEvent", function(self, event)
     end
 end)
 
-----------------------------------------------------------------------
--- Toggle main window (used by slash command + settings panel)
-----------------------------------------------------------------------
 function NS.ToggleMainFrame()
     if not NS.db then return end
     if not NS.mainFrame then
@@ -227,9 +180,6 @@ function NS.ToggleMainFrame()
     NS.mainFrame:SetShown(not NS.mainFrame:IsShown())
 end
 
-----------------------------------------------------------------------
--- Slash command
-----------------------------------------------------------------------
 SLASH_BARSNAP1 = "/bs"
 SLASH_BARSNAP2 = "/barsnap"
 SlashCmdList["BARSNAP"] = function(msg)

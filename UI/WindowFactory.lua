@@ -1,11 +1,4 @@
-local AddonName, NS = ...
-
-----------------------------------------------------------------------
--- Window factory: creates standard addon windows
---
--- Floating (no anchor): centered, draggable, ESC-closeable
--- Docked  (anchor given): attached to another frame, static
-----------------------------------------------------------------------
+local _, NS = ...
 
 local DEFAULT_MIN_H = 60
 local DEFAULT_MAX_H = 800
@@ -19,7 +12,6 @@ function NS.CreateWindow(opts)
     frame.TitleText:SetText(opts.title or "")
 
     if opts.anchor then
-        -- Docked: positioned relative to anchor frame
         local a = opts.anchor
         frame:SetPoint(
             a.point or "TOPLEFT",
@@ -29,7 +21,6 @@ function NS.CreateWindow(opts)
             a.y or 0
         )
     else
-        -- Floating: centered, draggable
         frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
         frame:SetMovable(true)
         frame:EnableMouse(true)
@@ -46,7 +37,6 @@ function NS.CreateWindow(opts)
         frame:SetScript("OnHide", opts.onHide)
     end
 
-    -- Height clamping bounds
     local minH = opts.minH or DEFAULT_MIN_H
     local maxH = opts.maxH or DEFAULT_MAX_H
 
@@ -55,7 +45,6 @@ function NS.CreateWindow(opts)
         self:SetHeight(clamped)
     end
 
-    -- Standard content offset (below title bar + padding)
     frame.contentTop = NS.TITLE_BAR_HEIGHT + NS.PADDING
 
     frame:SetContentHeight(minH)

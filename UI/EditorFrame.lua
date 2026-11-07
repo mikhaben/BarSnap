@@ -1,12 +1,9 @@
-local AddonName, NS = ...
+local _, NS = ...
 
 local editorFrame = nil
 local currentIndex = nil
 local iconPickerFrame = nil
 
-----------------------------------------------------------------------
--- Resolve an action table to its icon texture
-----------------------------------------------------------------------
 local function GetActionIcon(action)
     if not action or not action.type then return nil end
     local t = action.type
@@ -40,12 +37,9 @@ local function GetActionIcon(action)
     return nil
 end
 
-----------------------------------------------------------------------
--- Icon picker: shows preset's action icons in a grid
-----------------------------------------------------------------------
 local PICKER_COLS = 6
 local PICKER_ICON = 32
-local PICKER_GAP  = NS.PADDING / 2   -- half standard padding (5px)
+local PICKER_GAP  = NS.PADDING / 2
 local PICKER_PAD  = NS.PADDING
 local PICKER_MIN_W = 150
 
@@ -72,7 +66,6 @@ local function ShowIconPicker()
 
     local picker = CreateIconPicker(editorFrame)
 
-    -- Collect unique icons from preset actions
     local icons = {}
     local seen = {}
     for slot = NS.SLOT_MIN, NS.SLOT_MAX do
@@ -86,7 +79,6 @@ local function ShowIconPicker()
         end
     end
 
-    -- Hide old buttons
     for _, btn in ipairs(picker.buttons) do
         btn:Hide()
     end
@@ -98,7 +90,6 @@ local function ShowIconPicker()
         return
     end
 
-    -- Size the frame to fit the grid (flex-wrap: cols shrink to icon count)
     local cols = math.min(#icons, PICKER_COLS)
     local rows = math.ceil(#icons / PICKER_COLS)
     local gridW = cols * (PICKER_ICON + PICKER_GAP) - PICKER_GAP
@@ -107,7 +98,6 @@ local function ShowIconPicker()
     picker:SetWidth(frameW)
     picker:SetContentHeight(gridH + NS.PADDING + picker.contentTop)
 
-    -- Create / reuse buttons
     for i, icon in ipairs(icons) do
         local btn = picker.buttons[i]
         if not btn then
@@ -146,7 +136,6 @@ local function ShowIconPicker()
 
         btn:SetScript("OnClick", function()
             preset.icon = icon
-            -- Update all checkmarks
             for j = 1, #icons do
                 local b = picker.buttons[j]
                 if b and b:IsShown() then
@@ -163,11 +152,6 @@ local function ShowIconPicker()
     picker:Show()
 end
 
-----------------------------------------------------------------------
--- Verify a captured preset reference is still in the active scope's
--- presets array. Captures-by-reference are stable across rename, and
--- this membership check rejects deletion and scope-switch races.
-----------------------------------------------------------------------
 local function PresetStillActive(preset)
     if not preset then return false end
     for _, p in ipairs(NS.GetActivePresets()) do
@@ -176,9 +160,6 @@ local function PresetStillActive(preset)
     return false
 end
 
-----------------------------------------------------------------------
--- Delete confirmation popup
-----------------------------------------------------------------------
 StaticPopupDialogs[NS.POPUP_DELETE_PRESET] = {
     text = "Delete preset '%s'?",
     button1 = YES,
@@ -202,15 +183,6 @@ StaticPopupDialogs[NS.POPUP_DELETE_PRESET] = {
     preferredIndex = 3,
 }
 
-----------------------------------------------------------------------
--- Confirm before applying a preset that would modify special bars
--- (Bear, Moonkin/Travel, Dragonriding). Text args:
---   1st %s = preset name
---   2nd %s = comma-separated bar labels
--- self.data captures the preset by reference; on accept we verify it's
--- still in the active scope (rejects deletion, rename-collision, and
--- scope-switch races).
-----------------------------------------------------------------------
 StaticPopupDialogs[NS.POPUP_CONFIRM_FORM_BARS] = {
     text = "Applying '%s' will modify: %s.\n\nContinue?",
     button1 = YES,
@@ -226,11 +198,6 @@ StaticPopupDialogs[NS.POPUP_CONFIRM_FORM_BARS] = {
     preferredIndex = 3,
 }
 
-----------------------------------------------------------------------
--- Apply a preset, prompting first if it would modify form/dragonriding
--- bars. This is the UI-level entry point; Engine/Restore.lua's
--- ApplyPreset is the unconditional applier.
-----------------------------------------------------------------------
 function NS.RequestApplyPreset(preset)
     if not preset then return end
     if not NS.CanModifyBars() then return end
@@ -253,9 +220,6 @@ function NS.RequestApplyPreset(preset)
     end
 end
 
-----------------------------------------------------------------------
--- Create the editor frame (anchored to right of main window)
-----------------------------------------------------------------------
 function NS.CreateEditorFrame(parent)
     if editorFrame then return editorFrame end
 
@@ -267,7 +231,6 @@ function NS.CreateEditorFrame(parent)
         anchor = { frame = parent },
     })
 
-    -- Icon display
     local iconBtn = CreateFrame("Frame", nil, frame)
     iconBtn:SetSize(36, 36)
     iconBtn:SetPoint("TOPLEFT", frame, "TOPLEFT", NS.PADDING, -frame.contentTop)
@@ -279,7 +242,6 @@ function NS.CreateEditorFrame(parent)
 
     frame.iconBtn = iconBtn
 
-    -- Name input
     local nameBox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
     nameBox:SetHeight(22)
     nameBox:SetPoint("TOPLEFT", frame, "TOPLEFT", NS.PADDING + 36 + 12, -frame.contentTop)
@@ -289,11 +251,10 @@ function NS.CreateEditorFrame(parent)
     nameBox:SetFontObject(GameFontHighlight)
 
     nameBox:SetScript("OnEnterPressed", function(self)
-        self:ClearFocus()  -- triggers OnEditFocusLost which handles save
+        self:ClearFocus()
     end)
 
     nameBox:SetScript("OnEscapePressed", function(self)
-        -- Revert to saved name before losing focus
         if currentIndex and NS.GetActivePresets()[currentIndex] then
             self:SetText(NS.GetActivePresets()[currentIndex].name)
         end
@@ -317,7 +278,6 @@ function NS.CreateEditorFrame(parent)
     end)
     frame.nameBox = nameBox
 
-    -- "Change Icon" button (below icon, aligned with name input)
     local changeIconBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     changeIconBtn:SetSize(85, 22)
     changeIconBtn:SetPoint("TOPLEFT", nameBox, "BOTTOMLEFT", 0, -2)
@@ -333,15 +293,14 @@ function NS.CreateEditorFrame(parent)
     end)
     frame.changeIconBtn = changeIconBtn
 
-    -- 2-column checkbox helper
     local colWidth = (NS.EDITOR_WIDTH - NS.PADDING * 2) / 2
 
-    local function CreateTwoColCheckboxes(parent, items, anchorBelow, onClick)
+    local function CreateTwoColCheckboxes(container, items, anchorBelow, onClick)
         local cbs = {}
         local prevLeft = nil
         for i, item in ipairs(items) do
-            local col = (i - 1) % 2  -- 0=left, 1=right
-            local cb = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
+            local col = (i - 1) % 2
+            local cb = CreateFrame("CheckButton", nil, container, "UICheckButtonTemplate")
             cb:SetSize(24, 24)
 
             if col == 0 then
@@ -373,7 +332,6 @@ function NS.CreateEditorFrame(parent)
         return cbs, prevLeft
     end
 
-    -- Section: Restore Categories
     local catHeader = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     catHeader:SetPoint("LEFT", frame, "LEFT", NS.PADDING, 0)
     catHeader:SetPoint("TOP", changeIconBtn, "BOTTOM", 0, -10)
@@ -381,7 +339,6 @@ function NS.CreateEditorFrame(parent)
     catHeader:SetTextColor(unpack(NS.COLOR_YELLOW))
     frame.catHeader = catHeader
 
-    -- Category checkboxes (2-column)
     local catCBs, catLastRow = CreateTwoColCheckboxes(frame, NS.CATEGORIES, catHeader, function(key, checked)
         if not currentIndex then return end
         local preset = NS.GetActivePresets()[currentIndex]
@@ -391,14 +348,12 @@ function NS.CreateEditorFrame(parent)
     end)
     frame.checkboxes = catCBs
 
-    -- Section: Action Bars
     local barHeader = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     barHeader:SetPoint("TOPLEFT", catLastRow, "BOTTOMLEFT", 0, -10)
     barHeader:SetText("Action bars")
     barHeader:SetTextColor(unpack(NS.COLOR_YELLOW))
     frame.barHeader = barHeader
 
-    -- Bar filter items
     local barItems = {}
     for i = 1, NS.BAR_COUNT do
         local label = NS.BAR_LABELS[i] or ("Bar " .. i)
@@ -406,12 +361,11 @@ function NS.CreateEditorFrame(parent)
         barItems[i] = {
             key          = i,
             label        = label,
-            tooltipTitle = tipBody and label or nil,  -- show tooltip only when we have body text
+            tooltipTitle = tipBody and label or nil,
             tooltipBody  = tipBody,
         }
     end
 
-    -- Bar checkboxes (2-column)
     local barCBs, barLastRow = CreateTwoColCheckboxes(frame, barItems, barHeader, function(key, checked)
         if not currentIndex then return end
         local preset = NS.GetActivePresets()[currentIndex]
@@ -421,14 +375,12 @@ function NS.CreateEditorFrame(parent)
     end)
     frame.barCheckboxes = barCBs
 
-    -- Section: Options
     local optHeader = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     optHeader:SetPoint("TOPLEFT", barLastRow, "BOTTOMLEFT", 0, -10)
     optHeader:SetText("Options")
     optHeader:SetTextColor(unpack(NS.COLOR_YELLOW))
     frame.optHeader = optHeader
 
-    -- "Keep unlisted slots" checkbox
     local preserveCB = CreateFrame("CheckButton", "BarSnapPreserveLayout", frame, "UICheckButtonTemplate")
     preserveCB:SetSize(24, 24)
     preserveCB:SetPoint("TOPLEFT", optHeader, "BOTTOMLEFT", 0, -4)
@@ -448,7 +400,6 @@ function NS.CreateEditorFrame(parent)
     end)
     frame.preserveCB = preserveCB
 
-    -- Warning: all filters disabled
     local allDisabledWarn = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     allDisabledWarn:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", NS.PADDING, NS.PADDING)
     allDisabledWarn:SetJustifyH("LEFT")
@@ -457,27 +408,23 @@ function NS.CreateEditorFrame(parent)
     allDisabledWarn:Hide()
     frame.allDisabledWarn = allDisabledWarn
 
-    -- Calculate editor height dynamically from content
-    local HEADER_H = 14   -- GameFontNormal approximate height
-    local CB_H = 24       -- UICheckButtonTemplate size
-    local CB_GAP = 2      -- gap between checkbox rows
+    local HEADER_H = 14
+    local CB_H = 24
+    local CB_GAP = 2
     local catRows = math.ceil(#NS.CATEGORIES / 2)
     local barRows = math.ceil(NS.BAR_COUNT / 2)
 
-    local totalH = frame.contentTop + 22 + 2 + 22  -- content top, name input, gap, change icon btn
-        + 10 + HEADER_H + 4 + catRows * (CB_H + CB_GAP) - CB_GAP   -- categories section
-        + 10 + HEADER_H + 4 + barRows * (CB_H + CB_GAP) - CB_GAP   -- bars section
-        + 10 + HEADER_H + 4 + CB_H                                  -- options section
-        + NS.PADDING * 3                                             -- bottom padding + warning area
+    local totalH = frame.contentTop + 22 + 2 + 22
+        + 10 + HEADER_H + 4 + catRows * (CB_H + CB_GAP) - CB_GAP
+        + 10 + HEADER_H + 4 + barRows * (CB_H + CB_GAP) - CB_GAP
+        + 10 + HEADER_H + 4 + CB_H
+        + NS.PADDING * 3
     frame:SetContentHeight(totalH)
 
     editorFrame = frame
     return frame
 end
 
-----------------------------------------------------------------------
--- Update "all categories disabled" warning visibility
-----------------------------------------------------------------------
 function NS.UpdateCategoryWarning()
     if not editorFrame or not currentIndex then return end
     local preset = NS.GetActivePresets()[currentIndex]
@@ -486,7 +433,6 @@ function NS.UpdateCategoryWarning()
         return
     end
 
-    -- Check if any category is enabled
     local anyCatEnabled = false
     if preset.filters then
         for _, cat in ipairs(NS.CATEGORIES) do
@@ -497,7 +443,6 @@ function NS.UpdateCategoryWarning()
         end
     end
 
-    -- Check if any bar is enabled
     local anyBarEnabled = false
     if preset.barFilters then
         for bar = 1, NS.BAR_COUNT do
@@ -508,21 +453,15 @@ function NS.UpdateCategoryWarning()
         end
     end
 
-    -- Warn if ALL categories disabled OR ALL bars disabled — either blocks all restoration
     editorFrame.allDisabledWarn:SetShown(not anyCatEnabled or not anyBarEnabled)
 end
 
-----------------------------------------------------------------------
--- Open editor for a specific preset index
-----------------------------------------------------------------------
 function NS.OpenEditor(index)
-    -- Editor is created alongside the main frame; no late-construction path.
     if not editorFrame then return end
 
     local preset = NS.GetActivePresets()[index]
     if not preset then return end
 
-    -- Close icon picker when switching presets
     if iconPickerFrame then iconPickerFrame:Hide() end
 
     currentIndex = index
@@ -530,9 +469,6 @@ function NS.OpenEditor(index)
     editorFrame:Show()
 end
 
-----------------------------------------------------------------------
--- Refresh editor contents from current preset
-----------------------------------------------------------------------
 function NS.RefreshEditor()
     if not editorFrame or not currentIndex then return end
     local preset = NS.GetActivePresets()[currentIndex]
@@ -541,13 +477,10 @@ function NS.RefreshEditor()
         return
     end
 
-    -- Icon
     editorFrame.iconBtn.texture:SetTexture(preset.icon or NS.TEX_FALLBACK_ICON)
 
-    -- Name
     editorFrame.nameBox:SetText(preset.name or "")
 
-    -- Category checkboxes
     for key, cb in pairs(editorFrame.checkboxes) do
         local checked = true
         if preset.filters and preset.filters[key] ~= nil then
@@ -556,7 +489,6 @@ function NS.RefreshEditor()
         cb:SetChecked(checked)
     end
 
-    -- Bar checkboxes
     for bar, cb in pairs(editorFrame.barCheckboxes) do
         local checked = true
         if preset.barFilters and preset.barFilters[bar] ~= nil then
@@ -565,16 +497,11 @@ function NS.RefreshEditor()
         cb:SetChecked(checked)
     end
 
-    -- Preserve layout
     editorFrame.preserveCB:SetChecked(preset.preserveLayout or false)
 
-    -- Warning visibility
     NS.UpdateCategoryWarning()
 end
 
-----------------------------------------------------------------------
--- Close editor
-----------------------------------------------------------------------
 function NS.CloseEditor()
     currentIndex = nil
     if iconPickerFrame then iconPickerFrame:Hide() end
