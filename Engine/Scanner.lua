@@ -1,10 +1,5 @@
 local _, NS = ...
 
-----------------------------------------------------------------------
--- Build a {name = true} set of macro names that exist more than once
--- across the account + character pools. Cheap (~138 GetMacroInfo calls)
--- and lets us warn about ambiguity once per save rather than per slot.
-----------------------------------------------------------------------
 local function GetMacroDuplicates()
     local counts = {}
     local total = (MAX_ACCOUNT_MACROS or 120) + (MAX_CHARACTER_MACROS or 18)
@@ -19,27 +14,21 @@ local function GetMacroDuplicates()
     return dupes
 end
 
-----------------------------------------------------------------------
--- ScanBars: read all 132 slots → sparse actions table
-----------------------------------------------------------------------
 function NS.ScanBars()
     local accountMax = MAX_ACCOUNT_MACROS or 120
     local actions = {}
-    local capturedDuped = {}  -- {name = true} — captured macros whose name has duplicates
+    local capturedDuped = {}
 
-    -- Lazy: only build the duplicate set if we actually capture a macro.
     local dupes = nil
 
     for slot = NS.SLOT_MIN, NS.SLOT_MAX do
         local actionType, id = GetActionInfo(slot)
 
         if actionType == "spell" then
-            -- Normalize to base spell ID so presets survive talent/spec changes
             local baseID = FindBaseSpellByID and FindBaseSpellByID(id) or id
             actions[slot] = { type = "spell", id = baseID }
 
         elseif actionType == "item" then
-            -- Check if this item is actually a toy
             if id and C_ToyBox and C_ToyBox.GetToyInfo then
                 local toyID = C_ToyBox.GetToyInfo(id)
                 if toyID then
@@ -54,10 +43,6 @@ function NS.ScanBars()
         elseif actionType == "macro" then
             local bar = math.ceil(slot / NS.SLOTS_PER_BAR)
             if not id or id <= 0 then
-                -- WoW returns id=0/nil for a bar slot whose macro reference is
-                -- broken (deleted-but-still-bound, transient state, etc).
-                -- Mirror ABS:R: tell the user which slot is bad instead of
-                -- silently dropping.
                 NS.Warn(string.format("Slot %d (bar %d): broken macro reference (id=%s) — recreate the macro to fix",
                     slot, bar, tostring(id)))
             else
@@ -81,11 +66,9 @@ function NS.ScanBars()
             actions[slot] = { type = "mount", id = id }
 
         elseif actionType == "toy" then
-            -- Trust WoW's type classification
             actions[slot] = { type = "toy", id = id }
 
         elseif actionType == "companion" then
-            -- Legacy type: check if toy, otherwise treat as battle pet
             if id and C_ToyBox and C_ToyBox.GetToyInfo then
                 local toyID = C_ToyBox.GetToyInfo(id)
                 if toyID then
@@ -111,13 +94,9 @@ function NS.ScanBars()
                 actions[slot] = { type = "summonpet", id = id }
             end
 
-        -- nil/unknown type → skip (sparse)
         end
     end
 
-    -- One-shot warning if any captured macro has a duplicate name across pools.
-    -- isCharacter + bodyHash usually disambiguate, but warning early helps the
-    -- user notice the ambiguity before a future macro deletion makes it bite.
     local dupNames = {}
     for name in pairs(capturedDuped) do dupNames[#dupNames + 1] = name end
     if #dupNames > 0 then
@@ -131,9 +110,6 @@ function NS.ScanBars()
     return actions
 end
 
-----------------------------------------------------------------------
--- Count non-empty actions in a table
-----------------------------------------------------------------------
 function NS.CountActions(actions)
     if not actions then return 0 end
     local count = 0
@@ -143,19 +119,12 @@ function NS.CountActions(actions)
     return count
 end
 
-----------------------------------------------------------------------
--- /bs debug — dump every non-empty slot to chat, grouped by bar.
--- Prints a per-bar summary first (BarSnap label + slot range + action
--- count) so a reporter can correlate their in-game UI to BarSnap's
--- numbering, then a detailed per-slot dump below.
-----------------------------------------------------------------------
 function NS.DebugScan()
     local accountMax = MAX_ACCOUNT_MACROS or 120
     NS.Print(string.format("Scan (MAX_ACCOUNT_MACROS=%s, MAX_CHARACTER_MACROS=%s, slots %d-%d, bars 1-%d):",
         tostring(MAX_ACCOUNT_MACROS), tostring(MAX_CHARACTER_MACROS),
         NS.SLOT_MIN, NS.SLOT_MAX, NS.BAR_COUNT))
 
-    -- Pre-pass: count actions per bar so we can summarise active bars first.
     local perBar = {}
     for slot = NS.SLOT_MIN, NS.SLOT_MAX do
         local actionType = GetActionInfo(slot)
@@ -165,9 +134,6 @@ function NS.DebugScan()
         end
     end
 
-    -- Summary header — one line per active bar using the editor's
-    -- BAR_LABELS so users can match BarSnap's numbering to what they
-    -- see in the Blizzard UI ("Bar 13 (UI 6)" → Action Bar 6, etc.).
     local hasActive = false
     for bar = 1, NS.BAR_COUNT do
         if perBar[bar] then
@@ -184,7 +150,6 @@ function NS.DebugScan()
         end
     end
 
-    -- Detail dump per slot.
     local printed = 0
     for bar = 1, NS.BAR_COUNT do
         local slotMin = (bar - 1) * NS.SLOTS_PER_BAR + 1

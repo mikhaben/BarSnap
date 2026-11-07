@@ -6,9 +6,6 @@ local scrollBox = nil
 local scrollBar = nil
 local dataProvider = nil
 
-----------------------------------------------------------------------
--- Create the main window
-----------------------------------------------------------------------
 function NS.CreateMainFrame()
     if mainFrame then return mainFrame end
 
@@ -21,7 +18,6 @@ function NS.CreateMainFrame()
         onHide = function() NS.CloseEditor() end,
     })
 
-    -- Scope toggle button
     local scopeBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     scopeBtn:SetHeight(NS.SCOPE_BTN_HEIGHT)
     scopeBtn:SetPoint("TOPLEFT", frame, "TOPLEFT", NS.PADDING, -frame.contentTop)
@@ -53,7 +49,6 @@ function NS.CreateMainFrame()
     frame.UpdateScopeButton = UpdateScopeButton
     UpdateScopeButton()
 
-    -- Save Current Bars button
     local saveBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     saveBtn:SetHeight(24)
     saveBtn:SetPoint("TOPLEFT", scopeBtn, "BOTTOMLEFT", 0, -4)
@@ -66,11 +61,9 @@ function NS.CreateMainFrame()
         local actions = NS.ScanBars()
         local count = NS.CountActions(actions)
 
-        -- Auto-name
         local baseName = "Preset #" .. (#NS.GetActivePresets() + 1)
         local name = NS.UniqueName(baseName)
 
-        -- Current spec (for labeling)
         local specID = 0
         if GetSpecializationInfo then
             local spec = GetSpecialization()
@@ -79,7 +72,6 @@ function NS.CreateMainFrame()
             end
         end
 
-        -- First non-empty slot's icon as default
         local icon = NS.TEX_FALLBACK_ICON
         for slot = NS.SLOT_MIN, NS.SLOT_MAX do
             if actions[slot] then
@@ -105,35 +97,29 @@ function NS.CreateMainFrame()
         table.insert(NS.GetActivePresets(), preset)
         NS.RefreshMainFrame()
 
-        -- Open editor for the new preset
         NS.OpenEditor(#NS.GetActivePresets())
 
         NS.Print("Saved '" .. name .. "' (" .. count .. " actions)")
     end)
     frame.saveBtn = saveBtn
 
-    -- Divider
     local divider = frame:CreateTexture(nil, "ARTWORK")
     divider:SetHeight(1)
     divider:SetPoint("TOPLEFT", saveBtn, "BOTTOMLEFT", 0, -5)
     divider:SetPoint("TOPRIGHT", saveBtn, "BOTTOMRIGHT", 0, -5)
     divider:SetColorTexture(0.4, 0.4, 0.4, 0.6)
 
-    -- "Presets" label
     local presetsLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     presetsLabel:SetPoint("TOPLEFT", divider, "BOTTOMLEFT", 0, -4)
     presetsLabel:SetText("Presets")
     presetsLabel:SetTextColor(unpack(NS.COLOR_YELLOW))
 
-    -- ScrollBox (modern list container — anchors managed by ScrollUtil below)
     scrollBox = CreateFrame("Frame", nil, frame, "WowScrollBoxList")
 
-    -- ScrollBar (minimal style, to the right of scroll box)
     scrollBar = CreateFrame("EventFrame", nil, frame, "MinimalScrollBar")
     scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 2, 0)
     scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 2, 0)
 
-    -- View + DataProvider
     local view = CreateScrollBoxListLinearView()
     view:SetElementExtent(NS.ROW_HEIGHT)
 
@@ -145,8 +131,6 @@ function NS.CreateMainFrame()
 
     ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
 
-    -- Let WoW manage scrollbar visibility + scroll box anchors automatically
-    -- This prevents race conditions between our manual SetShown and ScrollUtil's internal callbacks
     local anchorsWithBar = {
         CreateAnchor("TOPLEFT", presetsLabel, "BOTTOMLEFT", 0, -3),
         CreateAnchor("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -(NS.PADDING + 14), NS.PADDING),
@@ -159,7 +143,6 @@ function NS.CreateMainFrame()
 
     scrollBox:SetDataProvider(dataProvider)
 
-    -- Empty state text (centered in the list area)
     emptyText = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     emptyText:SetPoint("TOP", scrollBox, "TOP", 0, -20)
     emptyText:SetText("No presets yet")
@@ -168,18 +151,13 @@ function NS.CreateMainFrame()
     mainFrame = frame
     NS.mainFrame = frame
 
-    -- Initial refresh
     NS.RefreshMainFrame()
 
-    -- Create editor (hidden by default)
     NS.CreateEditorFrame(frame)
 
     return frame
 end
 
-----------------------------------------------------------------------
--- Refresh the preset list display
-----------------------------------------------------------------------
 function NS.RefreshMainFrame()
     if not mainFrame or not dataProvider then return end
 
@@ -192,14 +170,11 @@ function NS.RefreshMainFrame()
 
     emptyText:SetShown(count == 0)
 
-    -- Rebuild data
     dataProvider:Flush()
     for i, preset in ipairs(presets) do
         dataProvider:Insert({ preset = preset, index = i })
     end
 
-    -- Resize main frame height dynamically
-    -- Header: padding(38) + save btn(24) + gap(4) + scope btn(24) + gap(5) + divider(1) + gap(4) + label(12) + gap(3) = 115
     local headerHeight = mainFrame.contentTop + 24 + 4 + NS.SCOPE_BTN_HEIGHT + 5 + 1 + 4 + 12 + 3
     local footerHeight = NS.PADDING
     local listHeight = count * NS.ROW_HEIGHT
